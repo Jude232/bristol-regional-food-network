@@ -49,7 +49,10 @@ def sync_low_stock_notification(
 
         return None
 
-    quantity_text = f"{product.stock_quantity:g}"
+    quantity_text = format(
+        product.stock_quantity.normalize(),
+        "f",
+    )
 
     unit_text = (
         product.get_unit_display().lower()
