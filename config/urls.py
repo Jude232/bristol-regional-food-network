@@ -21,6 +21,10 @@ urlpatterns = [
         "cart/",
         include("orders.urls"),
     ),
+    path(
+        "reports/",
+        include("orders.report_urls"),
+    ),
 ]
 
 

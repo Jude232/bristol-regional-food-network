@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Producer payments
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Producer payment settlements</h1>
+
+        <p>
+            Review delivered orders, commission deductions and
+            producer payments for a completed period.
+        </p>
+    </section>
+
+    <form
+        class="report-filter-form"
+        method="get"
+    >
+        <div>
+            <label for="id_start">
+                Period start
+            </label>
+
+            <input
+                id="id_start"
+                type="date"
+                name="start"
+                value="{{ report.start_date|date:'Y-m-d' }}"
+            >
+        </div>
+
+        <div>
+            <label for="id_end">
+                Period end
+            </label>
+
+            <input
+                id="id_end"
+                type="date"
+                name="end"
+                value="{{ report.end_date|date:'Y-m-d' }}"
+            >
+        </div>
+
+        <div class="filter-actions">
+            <button
+                class="button"
+                type="submit"
+            >
+                Generate report
+            </button>
+        </div>
+    </form>
+
+    <section class="financial-summary-grid">
+        <article>
+            <h2>Gross order value</h2>
+            <p>£{{ report.total_gross }}</p>
+        </article>
+
+        <article>
+            <h2>Network commission</h2>
+            <p>£{{ report.total_commission }}</p>
+        </article>
+
+        <article>
+            <h2>Producer payment</h2>
+            <p>£{{ report.total_payment }}</p>
+        </article>
+
+        <article>
+            <h2>Orders included</h2>
+            <p>{{ report.order_count }}</p>
+        </article>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Settlement information</h2>
+
+        <dl class="details">
+            <dt>Reference</dt>
+            <dd>{{ report.settlement_reference }}</dd>
+
+            <dt>Period</dt>
+            <dd>
+                {{ report.start_date }}
+                to
+                {{ report.end_date }}
+            </dd>
+
+            <dt>Status</dt>
+            <dd>{{ report.settlement_status }}</dd>
+
+            <dt>Tax year started</dt>
+            <dd>{{ report.tax_year_start }}</dd>
+
+            <dt>Tax-year payment total</dt>
+            <dd>£{{ report.tax_year_payment }}</dd>
+        </dl>
+
+        <a
+            class="button"
+            href="{% url 'reports:producer_settlement_csv' %}?start={{ report.start_date|date:'Y-m-d' }}&end={{ report.end_date|date:'Y-m-d' }}"
+        >
+            Download CSV report
+        </a>
+    </section>
+
+    {% if report.producer_orders %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Delivery date</th>
+                        <th>Products</th>
+                        <th>Gross</th>
+                        <th>Commission</th>
+                        <th>Payment</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for producer_order in report.producer_orders %}
+                        <tr>
+                            <td>
+                                <a
+                                    href="{% url 'orders:producer_order_detail' producer_order.id %}"
+                                >
+                                    {{ producer_order.order.order_number }}
+                                </a>
+                            </td>
+
+                            <td>
+                                {{ producer_order.delivery_at }}
+                            </td>
+
+                            <td>
+                                {% for item in producer_order.items.all %}
+                                    <div>
+                                        {{ item.quantity|floatformat:"-2" }}
+                                        × {{ item.product_name }}
+                                    </div>
+                                {% empty %}
+                                    No item records
+                                {% endfor %}
+                            </td>
+
+                            <td>
+                                £{{ producer_order.subtotal }}
+                            </td>
+
+                            <td>
+                                £{{ producer_order.commission_amount }}
+                            </td>
+
+                            <td>
+                                £{{ producer_order.producer_payment }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No delivered orders in this period</h2>
+
+            <p>
+                Only producer orders marked as Delivered are included
+                in weekly settlements.
+            </p>
+        </section>
+    {% endif %}
+{% endblock %}

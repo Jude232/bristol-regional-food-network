@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Network commission report
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Network commission report</h1>
+
+        <p>
+            Administrator-only financial reporting for paid
+            marketplace orders.
+        </p>
+    </section>
+
+    <form
+        class="report-filter-form admin-report-filter"
+        method="get"
+    >
+        <div>
+            <label for="id_start">
+                Start date
+            </label>
+
+            <input
+                id="id_start"
+                type="date"
+                name="start"
+                value="{{ report.start_date|date:'Y-m-d' }}"
+            >
+        </div>
+
+        <div>
+            <label for="id_end">
+                End date
+            </label>
+
+            <input
+                id="id_end"
+                type="date"
+                name="end"
+                value="{{ report.end_date|date:'Y-m-d' }}"
+            >
+        </div>
+
+        <div>
+            <label for="id_producer">
+                Producer
+            </label>
+
+            <select
+                id="id_producer"
+                name="producer"
+            >
+                <option value="">
+                    All producers
+                </option>
+
+                {% for producer in producers %}
+                    <option
+                        value="{{ producer.id }}"
+                        {% if report.selected_producer == producer.id|stringformat:"s" %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ producer.business_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="id_status">
+                Order status
+            </label>
+
+            <select
+                id="id_status"
+                name="status"
+            >
+                <option value="">
+                    All statuses
+                </option>
+
+                {% for value, label in order_status_choices %}
+                    <option
+                        value="{{ value }}"
+                        {% if report.selected_status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-actions">
+            <button
+                class="button"
+                type="submit"
+            >
+                Generate report
+            </button>
+        </div>
+    </form>
+
+    <section class="financial-summary-grid">
+        <article>
+            <h2>Total order value</h2>
+            <p>£{{ report.total_order_value }}</p>
+        </article>
+
+        <article>
+            <h2>Network commission</h2>
+            <p>£{{ report.total_commission }}</p>
+        </article>
+
+        <article>
+            <h2>Producer payments</h2>
+            <p>£{{ report.total_producer_payments }}</p>
+        </article>
+
+        <article>
+            <h2>Orders processed</h2>
+            <p>{{ report.order_count }}</p>
+        </article>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Period summary</h2>
+
+        <dl class="details">
+            <dt>Report period</dt>
+            <dd>
+                {{ report.start_date }}
+                to
+                {{ report.end_date }}
+            </dd>
+
+            <dt>Year-to-date commission</dt>
+            <dd>
+                £{{ report.year_to_date_commission }}
+            </dd>
+        </dl>
+
+        <a
+            class="button"
+            href="{% url 'reports:commission_report_csv' %}?start={{ report.start_date|date:'Y-m-d' }}&end={{ report.end_date|date:'Y-m-d' }}&producer={{ report.selected_producer }}&status={{ report.selected_status }}"
+        >
+            Download CSV report
+        </a>
+    </section>
+
+    {% if report.orders %}
+        {% for order in report.orders %}
+            <section class="order-producer-section">
+                <h2>
+                    Order {{ order.order_number }}
+                </h2>
+
+                <dl class="details">
+                    <dt>Order date</dt>
+                    <dd>{{ order.created_at }}</dd>
+
+                    <dt>Status</dt>
+                    <dd>{{ order.get_status_display }}</dd>
+
+                    <dt>Payment status</dt>
+                    <dd>{{ order.get_payment_status_display }}</dd>
+
+                    <dt>Order total</dt>
+                    <dd>£{{ order.total_amount }}</dd>
+
+                    <dt>Commission</dt>
+                    <dd>£{{ order.commission_amount }}</dd>
+
+                    <dt>Producer payments</dt>
+                    <dd>£{{ order.producer_payment_total }}</dd>
+                </dl>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producer</th>
+                                <th>Gross value</th>
+                                <th>Commission</th>
+                                <th>Producer payment</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for producer_order in order.producer_orders.all %}
+                                <tr>
+                                    <td>
+                                        {{ producer_order.producer.business_name }}
+                                    </td>
+
+                                    <td>
+                                        £{{ producer_order.subtotal }}
+                                    </td>
+
+                                    <td>
+                                        £{{ producer_order.commission_amount }}
+                                    </td>
+
+                                    <td>
+                                        £{{ producer_order.producer_payment }}
+                                    </td>
+
+                                    <td>
+                                        {{ producer_order.get_status_display }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endfor %}
+    {% else %}
+        <section class="empty-state">
+            <h2>No paid orders found</h2>
+
+            <p>
+                No orders matched the selected report filters.
+            </p>
+        </section>
+    {% endif %}
+{% endblock %}

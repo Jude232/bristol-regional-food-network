@@ -381,8 +381,14 @@ class ProducerOrder(models.Model):
     def clean(self) -> None:
         super().clean()
 
+        reference_time = getattr(
+            self.order,
+            "created_at",
+            None,
+        ) or timezone.now()
+
         minimum_delivery_at = (
-            timezone.now() + timedelta(hours=48)
+            reference_time + timedelta(hours=48)
         )
 
         if (

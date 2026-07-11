@@ -55,6 +55,10 @@
                         <a href="{% url 'orders:producer_order_list' %}">
                             Incoming orders
                         </a>
+
+                        <a href="{% url 'reports:producer_settlement' %}">
+                            Payments
+                        </a>
                     {% elif user.role == "customer" or user.role == "community_group" or user.role == "restaurant" %}
                         <a href="{% url 'orders:cart_detail' %}">
                             Cart ({{ cart_item_count|floatformat:"-2" }})
@@ -62,6 +66,12 @@
 
                         <a href="{% url 'orders:order_list' %}">
                             My orders
+                        </a>
+                    {% endif %}
+
+                    {% if user.is_staff or user.role == "admin" %}
+                        <a href="{% url 'reports:commission_report' %}">
+                            Financial reports
                         </a>
                     {% endif %}
 

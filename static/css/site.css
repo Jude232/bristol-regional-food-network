@@ -509,3 +509,53 @@ button:disabled {
     font-size: 0.82rem;
     font-weight: bold;
 }
+
+.report-filter-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr)) auto;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+}
+
+.admin-report-filter {
+    grid-template-columns:
+        repeat(4, minmax(150px, 1fr))
+        auto;
+}
+
+.financial-summary-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.financial-summary-grid article {
+    padding: 1.25rem;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+}
+
+.financial-summary-grid h2 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+.financial-summary-grid p {
+    margin-bottom: 0;
+    font-size: 1.6rem;
+    font-weight: bold;
+}
+
+@media (max-width: 900px) {
+    .report-filter-form,
+    .admin-report-filter {
+        grid-template-columns: 1fr;
+    }
+}
