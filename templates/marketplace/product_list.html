@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Marketplace
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Marketplace</h1>
+
+        <p>
+            Browse fresh and seasonal food from local Bristol producers.
+        </p>
+    </section>
+
+    <form
+        class="filter-form"
+        method="get"
+    >
+        <div>
+            <label for="id_q">
+                Search products
+            </label>
+
+            <input
+                id="id_q"
+                type="search"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="Search by product, description or producer"
+            >
+        </div>
+
+        <div>
+            <label for="id_category">
+                Category
+            </label>
+
+            <select
+                id="id_category"
+                name="category"
+            >
+                <option value="">
+                    All categories
+                </option>
+
+                {% for category in categories %}
+                    <option
+                        value="{{ category.slug }}"
+                        {% if selected_category == category.slug %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="id_organic">
+                Organic certification
+            </label>
+
+            <select
+                id="id_organic"
+                name="organic"
+            >
+                <option value="">
+                    All products
+                </option>
+
+                <option
+                    value="true"
+                    {% if organic_filter == "true" %}
+                        selected
+                    {% endif %}
+                >
+                    Certified organic only
+                </option>
+            </select>
+        </div>
+
+        <div class="filter-actions">
+            <button
+                class="button"
+                type="submit"
+            >
+                Apply filters
+            </button>
+
+            <a
+                class="button secondary"
+                href="{% url 'marketplace:product_list' %}"
+            >
+                Clear
+            </a>
+        </div>
+    </form>
+
+    {% if products %}
+        <div class="product-grid">
+            {% for product in products %}
+                <article class="product-card">
+                    <div class="product-card-header">
+                        <span class="category-label">
+                            {{ product.category.name }}
+                        </span>
+
+                        {% if product.organic_certified %}
+                            <span class="organic-badge">
+                                Certified Organic
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <h2>
+                        <a
+                            href="{% url 'marketplace:product_detail' product.id %}"
+                        >
+                            {{ product.name }}
+                        </a>
+                    </h2>
+
+                    <p>
+                        {{ product.description|truncatewords:22 }}
+                    </p>
+
+                    <dl class="product-summary">
+                        <dt>Price</dt>
+                        <dd>
+                            £{{ product.price }}
+                            per {{ product.get_unit_display|lower }}
+                        </dd>
+
+                        <dt>Farm origin</dt>
+                        <dd>
+                            {{ product.farm_origin }}
+                        </dd>
+
+                        <dt>Availability</dt>
+                        <dd>
+                            {{ product.get_availability_status_display }}
+                        </dd>
+
+                        <dt>Allergens</dt>
+                        <dd>
+                            {{ product.allergen_information }}
+                        </dd>
+                    </dl>
+
+                    <a
+                        class="button"
+                        href="{% url 'marketplace:product_detail' product.id %}"
+                    >
+                        View product
+                    </a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No products found</h2>
+
+            <p>
+                No currently available products matched your search
+                and filter choices.
+            </p>
+
+            <a
+                class="button"
+                href="{% url 'marketplace:product_list' %}"
+            >
+                View all products
+            </a>
+        </section>
+    {% endif %}
+{% endblock %}

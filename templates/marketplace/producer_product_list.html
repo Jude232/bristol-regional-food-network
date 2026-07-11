@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}
+    My products
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading heading-with-action">
+        <div>
+            <h1>My products</h1>
+
+            <p>
+                Manage product details, stock and seasonal availability.
+            </p>
+        </div>
+
+        <a
+            class="button"
+            href="{% url 'marketplace:product_create' %}"
+        >
+            Add new product
+        </a>
+    </section>
+
+    {% if products %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Availability</th>
+                        <th>Customer visibility</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for product in products %}
+                        <tr>
+                            <td>
+                                <strong>{{ product.name }}</strong>
+
+                                {% if product.is_low_stock %}
+                                    <span class="low-stock-badge">
+                                        Low stock
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ product.category.name }}</td>
+
+                            <td>
+                                £{{ product.price }}
+                                / {{ product.get_unit_display|lower }}
+                            </td>
+
+                            <td>
+                                {{ product.stock_quantity }}
+                            </td>
+
+                            <td>
+                                {{ product.get_availability_status_display }}
+                            </td>
+
+                            <td>
+                                {% if product.is_available_now %}
+                                    Visible
+                                {% else %}
+                                    Hidden
+                                {% endif %}
+                            </td>
+
+                            <td class="action-cell">
+                                <a
+                                    href="{% url 'marketplace:product_update' product.id %}"
+                                >
+                                    Edit
+                                </a>
+
+                                <form
+                                    class="inline-form"
+                                    method="post"
+                                    action="{% url 'marketplace:product_toggle_active' product.id %}"
+                                >
+                                    {% csrf_token %}
+
+                                    <button
+                                        class="link-button dark-link"
+                                        type="submit"
+                                    >
+                                        {% if product.is_active %}
+                                            Deactivate
+                                        {% else %}
+                                            Activate
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No products yet</h2>
+
+            <p>
+                Add your first marketplace product to begin selling.
+            </p>
+
+            <a
+                class="button"
+                href="{% url 'marketplace:product_create' %}"
+            >
+                Add your first product
+            </a>
+        </section>
+    {% endif %}
+{% endblock %}

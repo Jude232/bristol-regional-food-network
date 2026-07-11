@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ product.name }}
+{% endblock %}
+
+{% block content %}
+    <article class="product-detail">
+        <p>
+            <a href="{% url 'marketplace:product_list' %}">
+                ← Back to marketplace
+            </a>
+        </p>
+
+        <div class="product-card-header">
+            <span class="category-label">
+                {{ product.category.name }}
+            </span>
+
+            {% if product.organic_certified %}
+                <span class="organic-badge">
+                    Certified Organic
+                </span>
+            {% endif %}
+        </div>
+
+        <h1>{{ product.name }}</h1>
+
+        <p class="product-price">
+            £{{ product.price }}
+            per {{ product.get_unit_display|lower }}
+        </p>
+
+        <p>{{ product.description }}</p>
+
+        <dl class="details">
+            <dt>Producer</dt>
+            <dd>{{ product.producer.business_name }}</dd>
+
+            <dt>Farm origin</dt>
+            <dd>{{ product.farm_origin }}</dd>
+
+            <dt>Availability</dt>
+            <dd>
+                {{ product.get_availability_status_display }}
+            </dd>
+
+            <dt>Current stock</dt>
+            <dd>
+                {{ product.stock_quantity }}
+                {{ product.get_unit_display|lower }}
+            </dd>
+
+            {% if product.available_from %}
+                <dt>Available from</dt>
+                <dd>{{ product.available_from }}</dd>
+            {% endif %}
+
+            {% if product.available_until %}
+                <dt>Available until</dt>
+                <dd>{{ product.available_until }}</dd>
+            {% endif %}
+
+            {% if product.harvest_date %}
+                <dt>Harvest date</dt>
+                <dd>{{ product.harvest_date }}</dd>
+            {% endif %}
+
+            {% if product.best_before_date %}
+                <dt>Best-before date</dt>
+                <dd>{{ product.best_before_date }}</dd>
+            {% endif %}
+        </dl>
+
+        <section class="allergen-warning">
+            <h2>Allergen information</h2>
+
+            <p>{{ product.allergen_information }}</p>
+        </section>
+
+        {% if product.organic_certified %}
+            <section class="organic-information">
+                <h2>Organic certification</h2>
+
+                <p>
+                    This product is marked as certified organic.
+                </p>
+
+                <p>
+                    {{ product.organic_certification_details }}
+                </p>
+            </section>
+        {% endif %}
+
+        <p>
+            Shopping-cart functionality will be added in the next
+            development checkpoint.
+        </p>
+    </article>
+{% endblock %}

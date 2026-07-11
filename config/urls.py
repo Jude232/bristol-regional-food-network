@@ -13,6 +13,10 @@ urlpatterns = [
         "",
         include("accounts.urls"),
     ),
+    path(
+        "marketplace/",
+        include("marketplace.urls"),
+    ),
 ]
 
 

@@ -186,3 +186,166 @@ select {
         grid-template-columns: 1fr;
     }
 }
+
+.page-heading {
+    margin-bottom: 1.5rem;
+}
+
+.heading-with-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.filter-form {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1.25rem;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+}
+
+.filter-actions {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(280px, 1fr)
+    );
+    gap: 1.25rem;
+}
+
+.product-card,
+.product-detail,
+.empty-state {
+    padding: 1.5rem;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+    box-shadow: 0 0.25rem 1rem rgb(0 0 0 / 6%);
+}
+
+.product-card h2 {
+    margin-top: 0.75rem;
+}
+
+.product-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-label,
+.organic-badge,
+.low-stock-badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.82rem;
+    font-weight: bold;
+}
+
+.category-label {
+    background: #e5ece7;
+}
+
+.organic-badge {
+    background: #d7f1df;
+    color: #0c5c2d;
+}
+
+.low-stock-badge {
+    margin-left: 0.35rem;
+    background: #fff1c8;
+    color: #714e00;
+}
+
+.product-summary {
+    display: grid;
+    grid-template-columns: 95px 1fr;
+    gap: 0.5rem;
+}
+
+.product-summary dt {
+    font-weight: bold;
+}
+
+.product-summary dd {
+    margin: 0;
+}
+
+.product-price {
+    font-size: 1.4rem;
+    font-weight: bold;
+}
+
+.allergen-warning {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 2px solid #b36b00;
+    border-radius: 0.5rem;
+    background: #fff7e8;
+}
+
+.organic-information {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #e9f7ed;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 0.85rem;
+    border-bottom: 1px solid #e1e6e2;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #eaf0eb;
+}
+
+.action-cell {
+    white-space: nowrap;
+}
+
+.dark-link {
+    color: #155d36;
+}
+
+.left-aligned {
+    justify-content: flex-start;
+}
+
+@media (max-width: 800px) {
+    .filter-form {
+        grid-template-columns: 1fr;
+    }
+
+    .heading-with-action {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
