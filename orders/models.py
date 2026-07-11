@@ -602,10 +602,30 @@ class ProducerOrderStatusHistory(models.Model):
 class UserNotification(models.Model):
     """A notification displayed inside a user's account."""
 
+    class NotificationType(models.TextChoices):
+        GENERAL = "general", "General"
+        NEW_ORDER = "new_order", "New Order"
+        ORDER_STATUS = "order_status", "Order Status"
+        LOW_STOCK = "low_stock", "Low Stock"
+
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="notifications",
+    )
+
+    notification_type = models.CharField(
+        max_length=30,
+        choices=NotificationType.choices,
+        default=NotificationType.GENERAL,
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        blank=True,
+        null=True,
     )
 
     title = models.CharField(
@@ -623,6 +643,10 @@ class UserNotification(models.Model):
         default=False,
     )
 
+    is_resolved = models.BooleanField(
+        default=False,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -632,3 +656,4 @@ class UserNotification(models.Model):
 
     def __str__(self) -> str:
         return f"{self.title} — {self.recipient.email}"
+

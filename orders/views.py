@@ -669,6 +669,9 @@ def producer_order_status_update(
 
     UserNotification.objects.create(
         recipient=producer_order.order.customer,
+        notification_type=(
+            UserNotification.NotificationType.ORDER_STATUS
+        ),
         title=(
             f"Order {producer_order.order.order_number} "
             "status updated"

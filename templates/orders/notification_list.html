@@ -17,9 +17,17 @@
         <div class="notification-list">
             {% for notification in notifications %}
                 <article
-                    class="notification-card {% if not notification.is_read %}unread{% endif %}"
+                    class="notification-card {% if not notification.is_read %}unread{% endif %} {% if notification.is_resolved %}resolved{% endif %}"
                 >
-                    <h2>{{ notification.title }}</h2>
+                    <div class="notification-heading">
+                        <h2>{{ notification.title }}</h2>
+
+                        {% if notification.is_resolved %}
+                            <span class="resolved-badge">
+                                Resolved
+                            </span>
+                        {% endif %}
+                    </div>
 
                     <p>{{ notification.message }}</p>
 

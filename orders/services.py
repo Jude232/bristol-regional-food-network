@@ -6,6 +6,8 @@ from django.urls import reverse
 
 from marketplace.models import Product
 
+from .notification_services import sync_low_stock_notification
+
 from .models import (
     Cart,
     CartItem,
@@ -182,6 +184,9 @@ def create_order_from_cart(
 
         UserNotification.objects.create(
             recipient=producer_order.producer.user,
+            notification_type=(
+                UserNotification.NotificationType.NEW_ORDER
+            ),
             title=f"New order {order.order_number}",
             message=(
                 "A new marketplace order requires preparation "
@@ -216,6 +221,10 @@ def create_order_from_cart(
                     "stock_quantity",
                     "updated_at",
                 ]
+            )
+
+            sync_low_stock_notification(
+                product
             )
 
     PaymentTransaction.objects.create(

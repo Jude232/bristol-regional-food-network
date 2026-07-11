@@ -253,12 +253,17 @@ class UserNotificationAdmin(admin.ModelAdmin):
     list_display = (
         "title",
         "recipient",
+        "notification_type",
+        "product",
         "is_read",
+        "is_resolved",
         "created_at",
     )
 
     list_filter = (
+        "notification_type",
         "is_read",
+        "is_resolved",
         "created_at",
     )
 
@@ -266,4 +271,5 @@ class UserNotificationAdmin(admin.ModelAdmin):
         "title",
         "message",
         "recipient__email",
+        "product__name",
     )

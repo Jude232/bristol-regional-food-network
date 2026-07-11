@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from accounts.models import ProducerProfile, User
 
+from orders.notification_services import sync_low_stock_notification
+
 from .forms import ProductForm
 from .models import Category, Product
 
@@ -182,6 +184,10 @@ def product_create(request):
             product.producer = request.producer_profile
             product.save()
 
+            sync_low_stock_notification(
+                product
+            )
+
             messages.success(
                 request,
                 f"{product.name} was added successfully.",
@@ -224,6 +230,10 @@ def product_update(request, product_id):
 
         if form.is_valid():
             product = form.save()
+
+            sync_low_stock_notification(
+                product
+            )
 
             messages.success(
                 request,
