@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Shopping cart
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading heading-with-action">
+        <div>
+            <h1>Shopping cart</h1>
+
+            <p>
+                Review your products before proceeding to checkout.
+            </p>
+        </div>
+
+        <a
+            class="button secondary"
+            href="{% url 'marketplace:product_list' %}"
+        >
+            Continue shopping
+        </a>
+    </section>
+
+    {% if producer_groups %}
+        {% for group in producer_groups %}
+            <section class="cart-producer-group">
+                <h2>
+                    {{ group.producer.business_name }}
+                </h2>
+
+                <p>
+                    Producer location:
+                    {{ group.producer.postcode }}
+                </p>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Line total</th>
+                                <th>Remove</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for item in group.items %}
+                                <tr>
+                                    <td>
+                                        <a
+                                            href="{% url 'marketplace:product_detail' item.product.id %}"
+                                        >
+                                            {{ item.product.name }}
+                                        </a>
+
+                                        <div class="small-text">
+                                            Available stock:
+                                            {{ item.product.stock_quantity }}
+                                            {{ item.product.get_unit_display|lower }}
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        £{{ item.product.price }}
+                                        per
+                                        {{ item.product.get_unit_display|lower }}
+                                    </td>
+
+                                    <td>
+                                        <form
+                                            class="quantity-form"
+                                            method="post"
+                                            action="{% url 'orders:update_cart_item' item.id %}"
+                                        >
+                                            {% csrf_token %}
+
+                                            <input
+                                                type="number"
+                                                name="quantity"
+                                                value="{{ item.quantity }}"
+                                                min="0.01"
+                                                max="{{ item.product.stock_quantity }}"
+                                                step="0.01"
+                                                aria-label="Quantity for {{ item.product.name }}"
+                                                required
+                                            >
+
+                                            <button
+                                                class="button small-button"
+                                                type="submit"
+                                            >
+                                                Update
+                                            </button>
+                                        </form>
+                                    </td>
+
+                                    <td>
+                                        £{{ item.line_total }}
+                                    </td>
+
+                                    <td>
+                                        <form
+                                            method="post"
+                                            action="{% url 'orders:remove_cart_item' item.id %}"
+                                        >
+                                            {% csrf_token %}
+
+                                            <button
+                                                class="link-button dark-link"
+                                                type="submit"
+                                            >
+                                                Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+
+                        <tfoot>
+                            <tr>
+                                <th colspan="3">
+                                    Producer subtotal
+                                </th>
+
+                                <th colspan="2">
+                                    £{{ group.subtotal }}
+                                </th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </section>
+        {% endfor %}
+
+        <section class="cart-summary">
+            <h2>Cart summary</h2>
+
+            <dl class="details">
+                <dt>Total quantity</dt>
+                <dd>{{ cart.item_count }}</dd>
+
+                <dt>Total price</dt>
+                <dd>
+                    <strong>
+                        £{{ cart.total }}
+                    </strong>
+                </dd>
+            </dl>
+
+            <p>
+                Checkout and payment processing will be added in the
+                next development checkpoint.
+            </p>
+
+            <div class="button-row left-aligned">
+                <button
+                    class="button"
+                    type="button"
+                    disabled
+                >
+                    Proceed to checkout
+                </button>
+
+                <form
+                    method="post"
+                    action="{% url 'orders:clear_cart' %}"
+                >
+                    {% csrf_token %}
+
+                    <button
+                        class="button danger-button"
+                        type="submit"
+                    >
+                        Clear cart
+                    </button>
+                </form>
+            </div>
+        </section>
+    {% else %}
+        <section class="empty-state">
+            <h2>Your cart is empty</h2>
+
+            <p>
+                Browse the marketplace and add products to begin an order.
+            </p>
+
+            <a
+                class="button"
+                href="{% url 'marketplace:product_list' %}"
+            >
+                Browse products
+            </a>
+        </section>
+    {% endif %}
+{% endblock %}

@@ -17,6 +17,10 @@ urlpatterns = [
         "marketplace/",
         include("marketplace.urls"),
     ),
+    path(
+        "cart/",
+        include("orders.urls"),
+    ),
 ]
 
 

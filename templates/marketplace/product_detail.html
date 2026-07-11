@@ -92,9 +92,61 @@
             </section>
         {% endif %}
 
-        <p>
-            Shopping-cart functionality will be added in the next
-            development checkpoint.
-        </p>
+        <section class="purchase-panel">
+            <h2>Add to cart</h2>
+
+            {% if user.is_authenticated %}
+                {% if user.role == "customer" or user.role == "community_group" or user.role == "restaurant" %}
+                    <form
+                        class="add-to-cart-form"
+                        method="post"
+                        action="{% url 'orders:add_to_cart' product.id %}"
+                    >
+                        {% csrf_token %}
+
+                        <div>
+                            <label for="id_quantity">
+                                Quantity
+                            </label>
+
+                            <input
+                                id="id_quantity"
+                                type="number"
+                                name="quantity"
+                                value="1"
+                                min="0.01"
+                                max="{{ product.stock_quantity }}"
+                                step="0.01"
+                                required
+                            >
+                        </div>
+
+                        <button
+                            class="button"
+                            type="submit"
+                        >
+                            Add to cart
+                        </button>
+                    </form>
+                {% else %}
+                    <p>
+                        Producer and administrator accounts cannot
+                        place customer orders.
+                    </p>
+                {% endif %}
+            {% else %}
+                <p>
+                    You must log in with a customer account before
+                    adding products to your cart.
+                </p>
+
+                <a
+                    class="button"
+                    href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}"
+                >
+                    Log in to purchase
+                </a>
+            {% endif %}
+        </section>
     </article>
 {% endblock %}
