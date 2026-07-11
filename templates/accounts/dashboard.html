@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Dashboard
+{% endblock %}
+
+{% block content %}
+    <section class="dashboard-card">
+        <h1>Account dashboard</h1>
+
+        <dl class="details">
+            <dt>Email</dt>
+            <dd>{{ user.email }}</dd>
+
+            <dt>Name</dt>
+            <dd>
+                {{ user.get_full_name|default:"Not provided" }}
+            </dd>
+
+            <dt>Account type</dt>
+            <dd>{{ user.get_role_display }}</dd>
+        </dl>
+
+        {% if user.role == "producer" and profile %}
+            <h2>Producer profile</h2>
+
+            <dl class="details">
+                <dt>Business name</dt>
+                <dd>{{ profile.business_name }}</dd>
+
+                <dt>Phone</dt>
+                <dd>{{ profile.phone }}</dd>
+
+                <dt>Business address</dt>
+                <dd>{{ profile.business_address }}</dd>
+
+                <dt>Postcode</dt>
+                <dd>{{ profile.postcode }}</dd>
+
+                <dt>Verification status</dt>
+                <dd>
+                    {% if profile.is_verified %}
+                        Verified
+                    {% else %}
+                        Awaiting verification
+                    {% endif %}
+                </dd>
+            </dl>
+        {% elif user.role == "customer" and profile %}
+            <h2>Customer profile</h2>
+
+            <dl class="details">
+                <dt>Phone</dt>
+                <dd>{{ profile.phone }}</dd>
+
+                <dt>Delivery address</dt>
+                <dd>{{ profile.delivery_address }}</dd>
+
+                <dt>Postcode</dt>
+                <dd>{{ profile.postcode }}</dd>
+            </dl>
+        {% endif %}
+    </section>
+{% endblock %}

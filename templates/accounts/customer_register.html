@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Customer registration
+{% endblock %}
+
+{% block content %}
+    <section class="form-card">
+        <h1>Customer registration</h1>
+
+        <p>
+            Create an account to browse and purchase locally produced food.
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {{ form.as_p }}
+
+            <button
+                class="button"
+                type="submit"
+            >
+                Create customer account
+            </button>
+        </form>
+
+        <p>
+            Already registered?
+            <a href="{% url 'accounts:login' %}">
+                Log in
+            </a>
+        </p>
+    </section>
+{% endblock %}

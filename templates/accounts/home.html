@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Home | Bristol Regional Food Network
+{% endblock %}
+
+{% block content %}
+    <section class="hero">
+        <h1>Local food from Bristol producers</h1>
+
+        <p>
+            Browse fresh, seasonal products from independent farms and
+            food businesses within the Bristol region.
+        </p>
+
+        {% if not user.is_authenticated %}
+            <div class="button-row">
+                <a
+                    class="button"
+                    href="{% url 'accounts:customer_register' %}"
+                >
+                    Register as a customer
+                </a>
+
+                <a
+                    class="button secondary"
+                    href="{% url 'accounts:producer_register' %}"
+                >
+                    Register as a producer
+                </a>
+            </div>
+        {% else %}
+            <a
+                class="button"
+                href="{% url 'accounts:dashboard' %}"
+            >
+                Open your dashboard
+            </a>
+        {% endif %}
+    </section>
+{% endblock %}
