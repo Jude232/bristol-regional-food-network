@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}
+    My orders
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>My orders</h1>
+
+        <p>
+            View your current and previous marketplace orders.
+        </p>
+    </section>
+
+    {% if orders %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order number</th>
+                        <th>Order date</th>
+                        <th>Producers</th>
+                        <th>Delivery dates</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>
+                                <a
+                                    href="{% url 'orders:order_detail' order.id %}"
+                                >
+                                    {{ order.order_number }}
+                                </a>
+                            </td>
+
+                            <td>
+                                {{ order.created_at }}
+                            </td>
+
+                            <td>
+                                {% for producer_order in order.producer_orders.all %}
+                                    <div>
+                                        {{ producer_order.producer.business_name }}
+                                    </div>
+                                {% endfor %}
+                            </td>
+
+                            <td>
+                                {% for producer_order in order.producer_orders.all %}
+                                    <div>
+                                        {{ producer_order.delivery_at }}
+                                    </div>
+                                {% endfor %}
+                            </td>
+
+                            <td>
+                                £{{ order.total_amount }}
+                            </td>
+
+                            <td>
+                                {{ order.get_payment_status_display }}
+                            </td>
+
+                            <td>
+                                {{ order.get_status_display }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No orders yet</h2>
+
+            <p>
+                Products that you purchase will appear here.
+            </p>
+
+            <a
+                class="button"
+                href="{% url 'marketplace:product_list' %}"
+            >
+                Browse products
+            </a>
+        </section>
+    {% endif %}
+{% endblock %}

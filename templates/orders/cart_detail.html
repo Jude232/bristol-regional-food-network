@@ -157,13 +157,12 @@
             </p>
 
             <div class="button-row left-aligned">
-                <button
+                <a
                     class="button"
-                    type="button"
-                    disabled
+                    href="{% url 'orders:checkout' %}"
                 >
                     Proceed to checkout
-                </button>
+                </a>
 
                 <form
                     method="post"

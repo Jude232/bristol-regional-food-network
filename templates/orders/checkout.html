@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Checkout
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Checkout</h1>
+
+        <p>
+            Review each producer's portion and enter your delivery
+            and simulated payment information.
+        </p>
+    </section>
+
+    {% for group in producer_groups %}
+        <section class="checkout-producer">
+            <h2>{{ group.producer.business_name }}</h2>
+
+            <p>
+                Producer location: {{ group.producer.postcode }}
+            </p>
+
+            <ul class="checkout-items">
+                {% for item in group.items %}
+                    <li>
+                        <span>
+                            {{ item.quantity|floatformat:"-2" }}
+                            × {{ item.product.name }}
+                        </span>
+
+                        <strong>
+                            £{{ item.line_total }}
+                        </strong>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <p>
+                <strong>
+                    Producer subtotal: £{{ group.subtotal }}
+                </strong>
+            </p>
+        </section>
+    {% endfor %}
+
+    <section class="checkout-summary">
+        <h2>Financial summary</h2>
+
+        <dl class="details">
+            <dt>Customer total</dt>
+            <dd>£{{ cart.total }}</dd>
+
+            <dt>Network commission</dt>
+            <dd>
+                £{{ commission_preview }} (5%)
+            </dd>
+
+            <dt>Producer allocations</dt>
+            <dd>
+                £{{ producer_payment_preview }} (95%)
+            </dd>
+        </dl>
+
+        <p class="small-text">
+            The commission is deducted from producer allocations.
+            It is not added to the customer's total.
+        </p>
+    </section>
+
+    <section class="form-card checkout-form-card">
+        <h2>Delivery and payment</h2>
+
+        {% if form.non_field_errors %}
+            <div class="message error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <p>
+                {{ form.delivery_address.label_tag }}
+                {{ form.delivery_address }}
+                {{ form.delivery_address.errors }}
+            </p>
+
+            <p>
+                {{ form.delivery_postcode.label_tag }}
+                {{ form.delivery_postcode }}
+                {{ form.delivery_postcode.errors }}
+            </p>
+
+            <p>
+                {{ form.delivery_at.label_tag }}
+                {{ form.delivery_at }}
+
+                {% if form.delivery_at.help_text %}
+                    <span class="helptext">
+                        {{ form.delivery_at.help_text }}
+                    </span>
+                {% endif %}
+
+                {{ form.delivery_at.errors }}
+            </p>
+
+            <p>
+                {{ form.special_instructions.label_tag }}
+                {{ form.special_instructions }}
+                {{ form.special_instructions.errors }}
+            </p>
+
+            <div class="mock-payment-panel">
+                <h3>MockPay test payment</h3>
+
+                <p>
+                    No real payment service or financial information
+                    is used by this project.
+                </p>
+
+                <p>
+                    {{ form.payment_token.label_tag }}
+                    {{ form.payment_token }}
+
+                    {% if form.payment_token.help_text %}
+                        <span class="helptext">
+                            {{ form.payment_token.help_text }}
+                        </span>
+                    {% endif %}
+
+                    {{ form.payment_token.errors }}
+                </p>
+
+                <p>
+                    {{ form.card_last_four.label_tag }}
+                    {{ form.card_last_four }}
+
+                    {% if form.card_last_four.help_text %}
+                        <span class="helptext">
+                            {{ form.card_last_four.help_text }}
+                        </span>
+                    {% endif %}
+
+                    {{ form.card_last_four.errors }}
+                </p>
+            </div>
+
+            <div class="button-row left-aligned">
+                <button
+                    class="button"
+                    type="submit"
+                >
+                    Confirm and pay £{{ cart.total }}
+                </button>
+
+                <a
+                    class="button secondary"
+                    href="{% url 'orders:cart_detail' %}"
+                >
+                    Return to cart
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

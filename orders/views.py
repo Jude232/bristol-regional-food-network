@@ -9,11 +9,22 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.models import User
-from marketplace.models import Product
 from marketplace.views import customer_visible_products
 
-from .forms import CartQuantityForm
-from .models import Cart, CartItem
+from .forms import CartQuantityForm, CheckoutForm
+from .models import (
+    COMMISSION_RATE,
+    Cart,
+    CartItem,
+    Order,
+    PaymentTransaction,
+    money,
+)
+from .services import (
+    CheckoutError,
+    PaymentDeclined,
+    create_order_from_cart,
+)
 
 
 CUSTOMER_ROLES = {
@@ -35,7 +46,7 @@ def customer_required(view_function):
     ) -> HttpResponse:
         if request.user.role not in CUSTOMER_ROLES:
             raise PermissionDenied(
-                "Only customer accounts can use the shopping cart."
+                "Only customer accounts can use this feature."
             )
 
         return view_function(
@@ -71,15 +82,14 @@ def build_producer_groups(items):
     return list(grouped_items.values())
 
 
-@customer_required
-def cart_detail(request):
-    """Display all items in the logged-in customer's cart."""
+def get_customer_cart(customer):
+    """Return a cart with all product and producer data loaded."""
 
     cart, _ = Cart.objects.get_or_create(
-        customer=request.user
+        customer=customer
     )
 
-    cart = (
+    return (
         Cart.objects.prefetch_related(
             Prefetch(
                 "items",
@@ -91,6 +101,15 @@ def cart_detail(request):
             )
         )
         .get(pk=cart.pk)
+    )
+
+
+@customer_required
+def cart_detail(request):
+    """Display all items in the logged-in customer's cart."""
+
+    cart = get_customer_cart(
+        request.user
     )
 
     items = list(cart.items.all())
@@ -276,4 +295,181 @@ def clear_cart(request):
 
     return redirect(
         "orders:cart_detail"
+    )
+
+
+@customer_required
+def checkout(request):
+    """Display and process the single/multi-producer checkout."""
+
+    cart = get_customer_cart(
+        request.user
+    )
+
+    items = list(cart.items.all())
+
+    if not items:
+        messages.error(
+            request,
+            "Add at least one product before checking out.",
+        )
+
+        return redirect(
+            "orders:cart_detail"
+        )
+
+    producer_groups = build_producer_groups(items)
+
+    profile = getattr(
+        request.user,
+        "customer_profile",
+        None,
+    )
+
+    initial = {}
+
+    if profile:
+        initial = {
+            "delivery_address": profile.delivery_address,
+            "delivery_postcode": profile.postcode,
+        }
+
+    if request.method == "POST":
+        form = CheckoutForm(
+            request.POST
+        )
+
+        if form.is_valid():
+            try:
+                order = create_order_from_cart(
+                    customer=request.user,
+                    delivery_address=(
+                        form.cleaned_data[
+                            "delivery_address"
+                        ]
+                    ),
+                    delivery_postcode=(
+                        form.cleaned_data[
+                            "delivery_postcode"
+                        ]
+                    ),
+                    delivery_at=(
+                        form.cleaned_data[
+                            "delivery_at"
+                        ]
+                    ),
+                    special_instructions=(
+                        form.cleaned_data[
+                            "special_instructions"
+                        ]
+                    ),
+                    payment_token=(
+                        form.cleaned_data[
+                            "payment_token"
+                        ]
+                    ),
+                    card_last_four=(
+                        form.cleaned_data[
+                            "card_last_four"
+                        ]
+                    ),
+                )
+            except PaymentDeclined as error:
+                form.add_error(
+                    "payment_token",
+                    str(error),
+                )
+            except CheckoutError as error:
+                form.add_error(
+                    None,
+                    str(error),
+                )
+            else:
+                messages.success(
+                    request,
+                    (
+                        "Your order was placed successfully. "
+                        f"Order number: {order.order_number}"
+                    ),
+                )
+
+                return redirect(
+                    "orders:order_detail",
+                    order_id=order.id,
+                )
+    else:
+        form = CheckoutForm(
+            initial=initial
+        )
+
+    commission_preview = money(
+        cart.total * COMMISSION_RATE
+    )
+
+    producer_payment_preview = money(
+        cart.total - commission_preview
+    )
+
+    return render(
+        request,
+        "orders/checkout.html",
+        {
+            "cart": cart,
+            "producer_groups": producer_groups,
+            "form": form,
+            "commission_preview": commission_preview,
+            "producer_payment_preview": (
+                producer_payment_preview
+            ),
+        },
+    )
+
+
+@customer_required
+def order_list(request):
+    """Display orders belonging to the logged-in customer."""
+
+    orders = (
+        Order.objects.filter(
+            customer=request.user
+        )
+        .prefetch_related(
+            "producer_orders__producer"
+        )
+        .order_by("-created_at")
+    )
+
+    return render(
+        request,
+        "orders/order_list.html",
+        {
+            "orders": orders,
+        },
+    )
+
+
+@customer_required
+def order_detail(request, order_id):
+    """Display one order owned by the logged-in customer."""
+
+    order = get_object_or_404(
+        Order.objects.prefetch_related(
+            "producer_orders__producer",
+            "producer_orders__items",
+        ),
+        pk=order_id,
+        customer=request.user,
+    )
+
+    payment = PaymentTransaction.objects.filter(
+        order=order
+    ).first()
+
+    return render(
+        request,
+        "orders/order_detail.html",
+        {
+            "order": order,
+            "payment": payment,
+        },
     )

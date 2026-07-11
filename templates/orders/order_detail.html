@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Order {{ order.order_number }}
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading heading-with-action">
+        <div>
+            <h1>Order {{ order.order_number }}</h1>
+
+            <p>
+                Placed on {{ order.created_at }}
+            </p>
+        </div>
+
+        <a
+            class="button secondary"
+            href="{% url 'orders:order_list' %}"
+        >
+            Back to my orders
+        </a>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Order summary</h2>
+
+        <dl class="details">
+            <dt>Order status</dt>
+            <dd>{{ order.get_status_display }}</dd>
+
+            <dt>Payment status</dt>
+            <dd>{{ order.get_payment_status_display }}</dd>
+
+            <dt>Delivery address</dt>
+            <dd>
+                {{ order.delivery_address }}<br>
+                {{ order.delivery_postcode }}
+            </dd>
+
+            <dt>Customer total</dt>
+            <dd>£{{ order.total_amount }}</dd>
+
+            <dt>Network commission</dt>
+            <dd>£{{ order.commission_amount }}</dd>
+
+            <dt>Producer allocations</dt>
+            <dd>£{{ order.producer_payment_total }}</dd>
+
+            {% if order.special_instructions %}
+                <dt>Special instructions</dt>
+                <dd>{{ order.special_instructions }}</dd>
+            {% endif %}
+        </dl>
+    </section>
+
+    {% if payment %}
+        <section class="payment-summary">
+            <h2>Payment information</h2>
+
+            <dl class="details">
+                <dt>Provider</dt>
+                <dd>{{ payment.provider }}</dd>
+
+                <dt>Payment reference</dt>
+                <dd>{{ payment.transaction_reference }}</dd>
+
+                <dt>Payment method</dt>
+                <dd>
+                    Test card ending in
+                    {{ payment.card_last_four }}
+                </dd>
+
+                <dt>Amount</dt>
+                <dd>£{{ payment.amount }}</dd>
+
+                <dt>Status</dt>
+                <dd>{{ payment.get_status_display }}</dd>
+            </dl>
+        </section>
+    {% endif %}
+
+    {% for producer_order in order.producer_orders.all %}
+        <section class="order-producer-section">
+            <h2>
+                {{ producer_order.producer.business_name }}
+            </h2>
+
+            <dl class="details">
+                <dt>Delivery date</dt>
+                <dd>{{ producer_order.delivery_at }}</dd>
+
+                <dt>Producer status</dt>
+                <dd>
+                    {{ producer_order.get_status_display }}
+                </dd>
+
+                <dt>Producer subtotal</dt>
+                <dd>£{{ producer_order.subtotal }}</dd>
+
+                <dt>Commission</dt>
+                <dd>£{{ producer_order.commission_amount }}</dd>
+
+                <dt>Producer payment</dt>
+                <dd>£{{ producer_order.producer_payment }}</dd>
+            </dl>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Original unit price</th>
+                            <th>Line total</th>
+                            <th>Allergens</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in producer_order.items.all %}
+                            <tr>
+                                <td>{{ item.product_name }}</td>
+
+                                <td>
+                                    {{ item.quantity|floatformat:"-2" }}
+                                    {{ item.unit_name|lower }}
+                                </td>
+
+                                <td>£{{ item.unit_price }}</td>
+
+                                <td>£{{ item.line_total }}</td>
+
+                                <td>
+                                    {{ item.allergen_information }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endfor %}
+{% endblock %}

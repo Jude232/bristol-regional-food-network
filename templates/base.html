@@ -55,6 +55,10 @@
                         <a href="{% url 'orders:cart_detail' %}">
                             Cart ({{ cart_item_count|floatformat:"-2" }})
                         </a>
+
+                        <a href="{% url 'orders:order_list' %}">
+                            My orders
+                        </a>
                     {% endif %}
 
                     <form

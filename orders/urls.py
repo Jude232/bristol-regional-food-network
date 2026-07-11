@@ -32,4 +32,19 @@ urlpatterns = [
         views.clear_cart,
         name="clear_cart",
     ),
+    path(
+        "checkout/",
+        views.checkout,
+        name="checkout",
+    ),
+    path(
+        "orders/",
+        views.order_list,
+        name="order_list",
+    ),
+    path(
+        "orders/<int:order_id>/",
+        views.order_detail,
+        name="order_detail",
+    ),
 ]
