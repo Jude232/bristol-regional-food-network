@@ -10,6 +10,10 @@ urlpatterns = [
         admin.site.urls,
     ),
     path(
+        "api/",
+        include("api.urls"),
+    ),
+    path(
         "",
         include("accounts.urls"),
     ),
