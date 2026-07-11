@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User
+from .models import CustomerProfile, ProducerProfile, User
 
 
 @admin.register(User)
@@ -36,7 +36,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "email",
                     "password",
-                )
+                ),
             },
         ),
         (
@@ -46,7 +46,7 @@ class UserAdmin(BaseUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
-                )
+                ),
             },
         ),
         (
@@ -58,7 +58,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_superuser",
                     "groups",
                     "user_permissions",
-                )
+                ),
             },
         ),
         (
@@ -67,7 +67,7 @@ class UserAdmin(BaseUserAdmin):
                 "fields": (
                     "last_login",
                     "date_joined",
-                )
+                ),
             },
         ),
     )
@@ -87,4 +87,47 @@ class UserAdmin(BaseUserAdmin):
                 ),
             },
         ),
+    )
+
+
+@admin.register(ProducerProfile)
+class ProducerProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "business_name",
+        "user",
+        "postcode",
+        "is_verified",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_verified",
+    )
+
+    search_fields = (
+        "business_name",
+        "user__email",
+        "postcode",
+    )
+
+
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "phone",
+        "postcode",
+        "accepted_terms",
+        "created_at",
+    )
+
+    list_filter = (
+        "accepted_terms",
+    )
+
+    search_fields = (
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "postcode",
     )
