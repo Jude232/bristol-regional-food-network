@@ -51,6 +51,10 @@
                         >
                             My products
                         </a>
+
+                        <a href="{% url 'orders:producer_order_list' %}">
+                            Incoming orders
+                        </a>
                     {% elif user.role == "customer" or user.role == "community_group" or user.role == "restaurant" %}
                         <a href="{% url 'orders:cart_detail' %}">
                             Cart ({{ cart_item_count|floatformat:"-2" }})
@@ -60,6 +64,13 @@
                             My orders
                         </a>
                     {% endif %}
+
+                    <a href="{% url 'orders:notification_list' %}">
+                        Notifications
+                        {% if unread_notification_count %}
+                            ({{ unread_notification_count }})
+                        {% endif %}
+                    </a>
 
                     <form
                         class="inline-form"

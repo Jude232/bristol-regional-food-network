@@ -455,3 +455,34 @@ button:disabled {
 .payment-summary {
     background: #f0f5f1;
 }
+
+.producer-order-filter {
+    grid-template-columns: 1fr auto;
+    max-width: 600px;
+}
+
+.status-history {
+    padding-left: 1.5rem;
+}
+
+.status-history li {
+    margin-bottom: 1rem;
+    padding-left: 0.5rem;
+}
+
+.notification-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.notification-card {
+    padding: 1.25rem;
+    border: 1px solid #d6ded7;
+    border-radius: 0.75rem;
+    background: white;
+}
+
+.notification-card.unread {
+    border-left: 0.4rem solid #17683d;
+    background: #f2faf4;
+}

@@ -553,3 +553,82 @@ class PaymentTransaction(models.Model):
 
     def __str__(self) -> str:
         return self.transaction_reference
+
+
+class ProducerOrderStatusHistory(models.Model):
+    """Permanent audit record of a producer-order status change."""
+
+    producer_order = models.ForeignKey(
+        ProducerOrder,
+        on_delete=models.CASCADE,
+        related_name="status_history",
+    )
+
+    previous_status = models.CharField(
+        max_length=20,
+        choices=ProducerOrder.Status.choices,
+    )
+
+    new_status = models.CharField(
+        max_length=20,
+        choices=ProducerOrder.Status.choices,
+    )
+
+    note = models.TextField(
+        blank=True,
+    )
+
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="producer_order_status_changes",
+    )
+
+    changed_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["changed_at"]
+        verbose_name_plural = "producer order status histories"
+
+    def __str__(self) -> str:
+        return (
+            f"{self.producer_order} — "
+            f"{self.previous_status} to {self.new_status}"
+        )
+
+
+class UserNotification(models.Model):
+    """A notification displayed inside a user's account."""
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+
+    title = models.CharField(
+        max_length=200,
+    )
+
+    message = models.TextField()
+
+    link = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    is_read = models.BooleanField(
+        default=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.title} — {self.recipient.email}"

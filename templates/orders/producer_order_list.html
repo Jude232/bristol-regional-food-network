@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Incoming orders
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Incoming orders</h1>
+
+        <p>
+            Orders are sorted by delivery date, with the earliest
+            delivery shown first.
+        </p>
+    </section>
+
+    <form
+        class="filter-form producer-order-filter"
+        method="get"
+    >
+        <div>
+            <label for="id_status">
+                Filter by status
+            </label>
+
+            <select
+                id="id_status"
+                name="status"
+            >
+                <option value="">
+                    All statuses
+                </option>
+
+                {% for value, label in status_choices %}
+                    <option
+                        value="{{ value }}"
+                        {% if selected_status == value %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-actions">
+            <button
+                class="button"
+                type="submit"
+            >
+                Apply filter
+            </button>
+
+            <a
+                class="button secondary"
+                href="{% url 'orders:producer_order_list' %}"
+            >
+                Clear
+            </a>
+        </div>
+    </form>
+
+    {% if producer_orders %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Ordered</th>
+                        <th>Delivery</th>
+                        <th>Items</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for producer_order in producer_orders %}
+                        <tr>
+                            <td>
+                                <a
+                                    href="{% url 'orders:producer_order_detail' producer_order.id %}"
+                                >
+                                    {{ producer_order.order.order_number }}
+                                </a>
+                            </td>
+
+                            <td>
+                                {{ producer_order.order.customer.get_full_name|default:producer_order.order.customer.email }}
+                            </td>
+
+                            <td>
+                                {{ producer_order.order.created_at }}
+                            </td>
+
+                            <td>
+                                {{ producer_order.delivery_at }}
+                            </td>
+
+                            <td>
+                                {% for item in producer_order.items.all %}
+                                    <div>
+                                        {{ item.quantity|floatformat:"-2" }}
+                                        × {{ item.product_name }}
+                                    </div>
+                                {% endfor %}
+                            </td>
+
+                            <td>
+                                £{{ producer_order.subtotal }}
+                            </td>
+
+                            <td>
+                                {{ producer_order.get_status_display }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No incoming orders</h2>
+
+            <p>
+                No orders currently match the selected status.
+            </p>
+        </section>
+    {% endif %}
+{% endblock %}

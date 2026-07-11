@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Notifications
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading">
+        <h1>Notifications</h1>
+
+        <p>
+            Updates relating to your products and marketplace orders.
+        </p>
+    </section>
+
+    {% if notifications %}
+        <div class="notification-list">
+            {% for notification in notifications %}
+                <article
+                    class="notification-card {% if not notification.is_read %}unread{% endif %}"
+                >
+                    <h2>{{ notification.title }}</h2>
+
+                    <p>{{ notification.message }}</p>
+
+                    <p class="small-text">
+                        {{ notification.created_at }}
+                    </p>
+
+                    {% if notification.link %}
+                        <form
+                            method="post"
+                            action="{% url 'orders:notification_mark_read' notification.id %}"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                class="button"
+                                type="submit"
+                            >
+                                Open notification
+                            </button>
+                        </form>
+                    {% elif not notification.is_read %}
+                        <form
+                            method="post"
+                            action="{% url 'orders:notification_mark_read' notification.id %}"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                class="button"
+                                type="submit"
+                            >
+                                Mark as read
+                            </button>
+                        </form>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <section class="empty-state">
+            <h2>No notifications</h2>
+
+            <p>
+                Account and order updates will appear here.
+            </p>
+        </section>
+    {% endif %}
+{% endblock %}

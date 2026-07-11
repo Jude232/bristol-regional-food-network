@@ -186,3 +186,83 @@ class CheckoutForm(forms.Form):
             )
 
         return last_four
+
+
+from .models import ProducerOrder
+
+
+class ProducerOrderStatusForm(forms.Form):
+    """Validate the next permitted producer-order status."""
+
+    STATUS_TRANSITIONS = {
+        ProducerOrder.Status.PENDING: [
+            ProducerOrder.Status.CONFIRMED,
+            ProducerOrder.Status.CANCELLED,
+        ],
+        ProducerOrder.Status.CONFIRMED: [
+            ProducerOrder.Status.READY,
+            ProducerOrder.Status.CANCELLED,
+        ],
+        ProducerOrder.Status.READY: [
+            ProducerOrder.Status.DELIVERED,
+        ],
+        ProducerOrder.Status.DELIVERED: [],
+        ProducerOrder.Status.CANCELLED: [],
+    }
+
+    next_status = forms.ChoiceField(
+        label="New order status",
+    )
+
+    note = forms.CharField(
+        label="Status note",
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": (
+                    "For example: Products will be prepared "
+                    "by the delivery date."
+                ),
+            }
+        ),
+    )
+
+    def __init__(
+        self,
+        *args,
+        producer_order: ProducerOrder,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.producer_order = producer_order
+
+        allowed_statuses = self.STATUS_TRANSITIONS.get(
+            producer_order.status,
+            [],
+        )
+
+        self.fields["next_status"].choices = [
+            (
+                status,
+                ProducerOrder.Status(status).label,
+            )
+            for status in allowed_statuses
+        ]
+
+    def clean_next_status(self) -> str:
+        next_status = self.cleaned_data["next_status"]
+
+        allowed_statuses = self.STATUS_TRANSITIONS.get(
+            self.producer_order.status,
+            [],
+        )
+
+        if next_status not in allowed_statuses:
+            raise forms.ValidationError(
+                "This status change is not permitted. "
+                "Order stages cannot be skipped."
+            )
+
+        return next_status

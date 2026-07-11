@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Producer order {{ producer_order.order.order_number }}
+{% endblock %}
+
+{% block content %}
+    <section class="page-heading heading-with-action">
+        <div>
+            <h1>
+                Order {{ producer_order.order.order_number }}
+            </h1>
+
+            <p>
+                Your portion of this customer order.
+            </p>
+        </div>
+
+        <a
+            class="button secondary"
+            href="{% url 'orders:producer_order_list' %}"
+        >
+            Back to incoming orders
+        </a>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Preparation and delivery</h2>
+
+        <dl class="details">
+            <dt>Current status</dt>
+            <dd>
+                {{ producer_order.get_status_display }}
+            </dd>
+
+            <dt>Order date</dt>
+            <dd>
+                {{ producer_order.order.created_at }}
+            </dd>
+
+            <dt>Delivery date</dt>
+            <dd>
+                {{ producer_order.delivery_at }}
+            </dd>
+
+            <dt>Producer subtotal</dt>
+            <dd>
+                £{{ producer_order.subtotal }}
+            </dd>
+
+            <dt>Network commission</dt>
+            <dd>
+                £{{ producer_order.commission_amount }}
+            </dd>
+
+            <dt>Producer payment</dt>
+            <dd>
+                £{{ producer_order.producer_payment }}
+            </dd>
+        </dl>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Customer information</h2>
+
+        <dl class="details">
+            <dt>Customer</dt>
+            <dd>
+                {{ producer_order.order.customer.get_full_name|default:producer_order.order.customer.email }}
+            </dd>
+
+            <dt>Email</dt>
+            <dd>
+                {{ producer_order.order.customer.email }}
+            </dd>
+
+            {% if customer_profile %}
+                <dt>Phone</dt>
+                <dd>{{ customer_profile.phone }}</dd>
+            {% endif %}
+
+            <dt>Delivery address</dt>
+            <dd>
+                {{ producer_order.order.delivery_address }}<br>
+                {{ producer_order.order.delivery_postcode }}
+            </dd>
+
+            <dt>Special instructions</dt>
+            <dd>
+                {{ producer_order.order.special_instructions|default:"None provided" }}
+            </dd>
+        </dl>
+    </section>
+
+    <section class="order-producer-section">
+        <h2>Items to prepare</h2>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity</th>
+                        <th>Unit price</th>
+                        <th>Line total</th>
+                        <th>Allergens</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in producer_order.items.all %}
+                        <tr>
+                            <td>{{ item.product_name }}</td>
+
+                            <td>
+                                {{ item.quantity|floatformat:"-2" }}
+                                {{ item.unit_name|lower }}
+                            </td>
+
+                            <td>£{{ item.unit_price }}</td>
+
+                            <td>£{{ item.line_total }}</td>
+
+                            <td>
+                                {{ item.allergen_information }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Update order status</h2>
+
+        {% if status_form.fields.next_status.choices %}
+            <form
+                method="post"
+                action="{% url 'orders:producer_order_status_update' producer_order.id %}"
+            >
+                {% csrf_token %}
+
+                {{ status_form.as_p }}
+
+                <button
+                    class="button"
+                    type="submit"
+                >
+                    Save status update
+                </button>
+            </form>
+        {% else %}
+            <p>
+                This order has reached its final status and cannot
+                be advanced further.
+            </p>
+        {% endif %}
+    </section>
+
+    <section class="order-summary-card">
+        <h2>Status history</h2>
+
+        {% if producer_order.status_history.all %}
+            <ol class="status-history">
+                {% for history in producer_order.status_history.all %}
+                    <li>
+                        <strong>
+                            {{ history.get_previous_status_display }}
+                            →
+                            {{ history.get_new_status_display }}
+                        </strong>
+
+                        <div>
+                            {{ history.changed_at }}
+                            by {{ history.changed_by.email }}
+                        </div>
+
+                        {% if history.note %}
+                            <p>{{ history.note }}</p>
+                        {% endif %}
+                    </li>
+                {% empty %}
+                    <li>No status changes have been recorded yet.</li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+    </section>
+{% endblock %}

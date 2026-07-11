@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal
 
 from django.db import transaction
+from django.urls import reverse
 
 from marketplace.models import Product
 
@@ -12,6 +13,7 @@ from .models import (
     OrderItem,
     PaymentTransaction,
     ProducerOrder,
+    UserNotification,
     money,
 )
 
@@ -177,6 +179,19 @@ def create_order_from_cart(
 
         producer_order.full_clean()
         producer_order.save()
+
+        UserNotification.objects.create(
+            recipient=producer_order.producer.user,
+            title=f"New order {order.order_number}",
+            message=(
+                "A new marketplace order requires preparation "
+                f"for {delivery_at:%d %B %Y at %H:%M}."
+            ),
+            link=reverse(
+                "orders:producer_order_detail",
+                args=[producer_order.id],
+            ),
+        )
 
         for grouped_item in group["items"]:
             cart_item = grouped_item["cart_item"]

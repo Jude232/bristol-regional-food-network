@@ -473,3 +473,322 @@ def order_detail(request, order_id):
             "payment": payment,
         },
     )
+
+
+from django.db import transaction
+from django.urls import reverse
+
+from .forms import ProducerOrderStatusForm
+from .models import (
+    ProducerOrder,
+    ProducerOrderStatusHistory,
+    UserNotification,
+)
+
+
+def get_producer_profile(request):
+    """Return the producer profile belonging to the current user."""
+
+    if request.user.role != User.Role.PRODUCER:
+        raise PermissionDenied(
+            "Only producer accounts can access incoming orders."
+        )
+
+    profile = getattr(
+        request.user,
+        "producer_profile",
+        None,
+    )
+
+    if profile is None:
+        raise PermissionDenied(
+            "This producer account does not have a producer profile."
+        )
+
+    return profile
+
+
+@login_required
+def producer_order_list(request):
+    """Display only the incoming orders belonging to this producer."""
+
+    producer = get_producer_profile(request)
+
+    producer_orders = (
+        ProducerOrder.objects.filter(
+            producer=producer
+        )
+        .select_related(
+            "order",
+            "order__customer",
+        )
+        .prefetch_related(
+            "items",
+        )
+        .order_by(
+            "delivery_at",
+            "order__order_number",
+        )
+    )
+
+    selected_status = request.GET.get(
+        "status",
+        "",
+    ).strip()
+
+    valid_statuses = {
+        choice.value
+        for choice in ProducerOrder.Status
+    }
+
+    if selected_status in valid_statuses:
+        producer_orders = producer_orders.filter(
+            status=selected_status
+        )
+
+    return render(
+        request,
+        "orders/producer_order_list.html",
+        {
+            "producer_orders": producer_orders,
+            "selected_status": selected_status,
+            "status_choices": ProducerOrder.Status.choices,
+        },
+    )
+
+
+@login_required
+def producer_order_detail(
+    request,
+    producer_order_id,
+):
+    """Display one producer-owned portion of an order."""
+
+    producer = get_producer_profile(request)
+
+    producer_order = get_object_or_404(
+        ProducerOrder.objects.select_related(
+            "order",
+            "order__customer",
+            "producer",
+        ).prefetch_related(
+            "items",
+            "status_history__changed_by",
+        ),
+        pk=producer_order_id,
+        producer=producer,
+    )
+
+    customer_profile = getattr(
+        producer_order.order.customer,
+        "customer_profile",
+        None,
+    )
+
+    status_form = ProducerOrderStatusForm(
+        producer_order=producer_order
+    )
+
+    return render(
+        request,
+        "orders/producer_order_detail.html",
+        {
+            "producer_order": producer_order,
+            "customer_profile": customer_profile,
+            "status_form": status_form,
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def producer_order_status_update(
+    request,
+    producer_order_id,
+):
+    """Advance an owned producer order through its lifecycle."""
+
+    if request.method != "POST":
+        raise PermissionDenied(
+            "Order statuses can only be changed using POST."
+        )
+
+    producer = get_producer_profile(request)
+
+    producer_order = get_object_or_404(
+        ProducerOrder.objects.select_for_update()
+        .select_related(
+            "order",
+            "order__customer",
+            "producer",
+        ),
+        pk=producer_order_id,
+        producer=producer,
+    )
+
+    form = ProducerOrderStatusForm(
+        request.POST,
+        producer_order=producer_order,
+    )
+
+    if not form.is_valid():
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(
+                    request,
+                    error,
+                )
+
+        return redirect(
+            "orders:producer_order_detail",
+            producer_order_id=producer_order.id,
+        )
+
+    previous_status = producer_order.status
+    new_status = form.cleaned_data["next_status"]
+    note = form.cleaned_data["note"].strip()
+
+    producer_order.status = new_status
+    producer_order.producer_note = note
+
+    producer_order.save(
+        update_fields=[
+            "status",
+            "producer_note",
+            "updated_at",
+        ]
+    )
+
+    ProducerOrderStatusHistory.objects.create(
+        producer_order=producer_order,
+        previous_status=previous_status,
+        new_status=new_status,
+        note=note,
+        changed_by=request.user,
+    )
+
+    UserNotification.objects.create(
+        recipient=producer_order.order.customer,
+        title=(
+            f"Order {producer_order.order.order_number} "
+            "status updated"
+        ),
+        message=(
+            f"{producer.business_name} changed your order "
+            f"status to {producer_order.get_status_display()}."
+        ),
+        link=reverse(
+            "orders:order_detail",
+            args=[producer_order.order.id],
+        ),
+    )
+
+    order = producer_order.order
+
+    producer_statuses = list(
+        order.producer_orders.values_list(
+            "status",
+            flat=True,
+        )
+    )
+
+    if (
+        producer_statuses
+        and all(
+            status == ProducerOrder.Status.DELIVERED
+            for status in producer_statuses
+        )
+    ):
+        order.status = Order.Status.COMPLETED
+
+    elif (
+        producer_statuses
+        and all(
+            status == ProducerOrder.Status.CANCELLED
+            for status in producer_statuses
+        )
+    ):
+        order.status = Order.Status.CANCELLED
+
+    elif any(
+        status in {
+            ProducerOrder.Status.CONFIRMED,
+            ProducerOrder.Status.READY,
+            ProducerOrder.Status.DELIVERED,
+        }
+        for status in producer_statuses
+    ):
+        order.status = Order.Status.PROCESSING
+
+    else:
+        order.status = Order.Status.PENDING
+
+    order.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ]
+    )
+
+    messages.success(
+        request,
+        (
+            f"Order status changed to "
+            f"{producer_order.get_status_display()}."
+        ),
+    )
+
+    return redirect(
+        "orders:producer_order_detail",
+        producer_order_id=producer_order.id,
+    )
+
+
+@login_required
+def notification_list(request):
+    """Display notifications belonging to the logged-in user."""
+
+    notifications = request.user.notifications.all()
+
+    return render(
+        request,
+        "orders/notification_list.html",
+        {
+            "notifications": notifications,
+        },
+    )
+
+
+@login_required
+def notification_mark_read(
+    request,
+    notification_id,
+):
+    """Mark one owned notification as read."""
+
+    if request.method != "POST":
+        raise PermissionDenied(
+            "Notifications can only be changed using POST."
+        )
+
+    notification = get_object_or_404(
+        UserNotification,
+        pk=notification_id,
+        recipient=request.user,
+    )
+
+    notification.is_read = True
+    notification.save(
+        update_fields=[
+            "is_read",
+        ]
+    )
+
+    if notification.link:
+        return redirect(
+            notification.link
+        )
+
+    return redirect(
+        "orders:notification_list"
+    )

@@ -47,4 +47,29 @@ urlpatterns = [
         views.order_detail,
         name="order_detail",
     ),
+    path(
+        "producer/orders/",
+        views.producer_order_list,
+        name="producer_order_list",
+    ),
+    path(
+        "producer/orders/<int:producer_order_id>/",
+        views.producer_order_detail,
+        name="producer_order_detail",
+    ),
+    path(
+        "producer/orders/<int:producer_order_id>/status/",
+        views.producer_order_status_update,
+        name="producer_order_status_update",
+    ),
+    path(
+        "notifications/",
+        views.notification_list,
+        name="notification_list",
+    ),
+    path(
+        "notifications/<int:notification_id>/read/",
+        views.notification_mark_read,
+        name="notification_mark_read",
+    ),
 ]

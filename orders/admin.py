@@ -211,3 +211,59 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         "transaction_reference",
         "created_at",
     )
+
+
+from .models import ProducerOrderStatusHistory, UserNotification
+
+
+@admin.register(ProducerOrderStatusHistory)
+class ProducerOrderStatusHistoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "producer_order",
+        "previous_status",
+        "new_status",
+        "changed_by",
+        "changed_at",
+    )
+
+    list_filter = (
+        "previous_status",
+        "new_status",
+        "changed_at",
+    )
+
+    search_fields = (
+        "producer_order__order__order_number",
+        "producer_order__producer__business_name",
+        "changed_by__email",
+    )
+
+    readonly_fields = (
+        "producer_order",
+        "previous_status",
+        "new_status",
+        "note",
+        "changed_by",
+        "changed_at",
+    )
+
+
+@admin.register(UserNotification)
+class UserNotificationAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "recipient",
+        "is_read",
+        "created_at",
+    )
+
+    list_filter = (
+        "is_read",
+        "created_at",
+    )
+
+    search_fields = (
+        "title",
+        "message",
+        "recipient__email",
+    )
