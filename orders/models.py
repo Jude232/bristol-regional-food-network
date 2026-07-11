@@ -1,11 +1,36 @@
-from decimal import Decimal
+import uuid
+from datetime import timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.utils import timezone
 
+from accounts.models import ProducerProfile
 from marketplace.models import Product
+
+
+COMMISSION_RATE = Decimal("0.05")
+MONEY_PLACES = Decimal("0.01")
+
+
+def money(value: Decimal) -> Decimal:
+    """Round financial values consistently to two decimal places."""
+
+    return Decimal(value).quantize(
+        MONEY_PLACES,
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def generate_order_number() -> str:
+    """Generate a readable unique customer order number."""
+
+    reference = uuid.uuid4().hex[:10].upper()
+
+    return f"BRFN-{reference}"
 
 
 class Cart(models.Model):
@@ -33,8 +58,6 @@ class Cart(models.Model):
 
     @property
     def total(self) -> Decimal:
-        """Return the current monetary total of all cart items."""
-
         return sum(
             (
                 item.line_total
@@ -45,8 +68,6 @@ class Cart(models.Model):
 
     @property
     def item_count(self) -> Decimal:
-        """Return the total quantity of products in the cart."""
-
         return sum(
             (
                 item.quantity
@@ -109,8 +130,6 @@ class CartItem(models.Model):
         )
 
     def clean(self) -> None:
-        """Ensure the requested quantity can currently be purchased."""
-
         super().clean()
 
         if not self.product.is_available_now:
@@ -134,8 +153,403 @@ class CartItem(models.Model):
 
     @property
     def line_total(self) -> Decimal:
-        """Return price multiplied by quantity to two decimal places."""
-
-        return (
+        return money(
             self.product.price * self.quantity
-        ).quantize(Decimal("0.01"))
+        )
+
+
+class Order(models.Model):
+    """One customer transaction containing one or more producers."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        DECLINED = "declined", "Declined"
+        REFUNDED = "refunded", "Refunded"
+
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="orders",
+    )
+
+    order_number = models.CharField(
+        max_length=20,
+        unique=True,
+        default=generate_order_number,
+        editable=False,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+
+    delivery_address = models.TextField()
+
+    delivery_postcode = models.CharField(
+        max_length=10,
+    )
+
+    special_instructions = models.TextField(
+        blank=True,
+    )
+
+    subtotal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    commission_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    producer_payment_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    total_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(subtotal__gte=0),
+                name="order_subtotal_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(commission_amount__gte=0),
+                name="order_commission_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(producer_payment_total__gte=0),
+                name="order_producer_total_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_amount__gte=0),
+                name="order_total_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.order_number
+
+    def set_financial_totals(
+        self,
+        subtotal: Decimal,
+    ) -> None:
+        """Store the customer total and network commission snapshot."""
+
+        self.subtotal = money(subtotal)
+
+        self.commission_amount = money(
+            self.subtotal * COMMISSION_RATE
+        )
+
+        self.producer_payment_total = money(
+            self.subtotal - self.commission_amount
+        )
+
+        # Commission is deducted from producer payments rather than
+        # added to the customer's purchase price.
+        self.total_amount = self.subtotal
+
+
+class ProducerOrder(models.Model):
+    """The portion of a customer order belonging to one producer."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        CONFIRMED = "confirmed", "Confirmed"
+        READY = "ready", "Ready for Collection/Delivery"
+        DELIVERED = "delivered", "Delivered"
+        CANCELLED = "cancelled", "Cancelled"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="producer_orders",
+    )
+
+    producer = models.ForeignKey(
+        ProducerProfile,
+        on_delete=models.PROTECT,
+        related_name="incoming_orders",
+    )
+
+    delivery_at = models.DateTimeField()
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    producer_note = models.TextField(
+        blank=True,
+    )
+
+    subtotal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    commission_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    producer_payment = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "delivery_at",
+            "order__order_number",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "producer"],
+                name="one_producer_section_per_order",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(subtotal__gte=0),
+                name="producer_order_subtotal_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(commission_amount__gte=0),
+                name="producer_order_commission_not_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(producer_payment__gte=0),
+                name="producer_payment_not_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.order.order_number} — "
+            f"{self.producer.business_name}"
+        )
+
+    def clean(self) -> None:
+        super().clean()
+
+        minimum_delivery_at = (
+            timezone.now() + timedelta(hours=48)
+        )
+
+        if (
+            self._state.adding
+            and self.delivery_at
+            and self.delivery_at < minimum_delivery_at
+        ):
+            raise ValidationError(
+                {
+                    "delivery_at": (
+                        "Delivery must be scheduled at least "
+                        "48 hours after checkout."
+                    )
+                }
+            )
+
+    def set_financial_totals(
+        self,
+        subtotal: Decimal,
+    ) -> None:
+        """Calculate the producer's 95% payment allocation."""
+
+        self.subtotal = money(subtotal)
+
+        self.commission_amount = money(
+            self.subtotal * COMMISSION_RATE
+        )
+
+        self.producer_payment = money(
+            self.subtotal - self.commission_amount
+        )
+
+
+class OrderItem(models.Model):
+    """A permanent snapshot of one purchased product."""
+
+    producer_order = models.ForeignKey(
+        ProducerOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="order_items",
+    )
+
+    product_name = models.CharField(
+        max_length=200,
+    )
+
+    unit_name = models.CharField(
+        max_length=50,
+    )
+
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[
+            MinValueValidator(Decimal("0.01")),
+        ],
+    )
+
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[
+            MinValueValidator(Decimal("0.01")),
+        ],
+    )
+
+    line_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    allergen_information = models.TextField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["product_name"]
+
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="order_item_quantity_greater_than_zero",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_price__gt=0),
+                name="order_item_price_greater_than_zero",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(line_total__gt=0),
+                name="order_item_total_greater_than_zero",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.quantity} × {self.product_name} "
+            f"({self.producer_order.order.order_number})"
+        )
+
+    def capture_product_snapshot(self) -> None:
+        """Copy values that must remain unchanged after purchase."""
+
+        self.product_name = self.product.name
+        self.unit_name = self.product.get_unit_display()
+        self.unit_price = money(self.product.price)
+
+        self.line_total = money(
+            self.unit_price * self.quantity
+        )
+
+        self.allergen_information = (
+            self.product.allergen_information
+        )
+
+
+class PaymentTransaction(models.Model):
+    """Safe record of a simulated test payment."""
+
+    class Status(models.TextChoices):
+        SUCCEEDED = "succeeded", "Succeeded"
+        DECLINED = "declined", "Declined"
+        REFUNDED = "refunded", "Refunded"
+
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.PROTECT,
+        related_name="payment",
+    )
+
+    provider = models.CharField(
+        max_length=50,
+        default="MockPay",
+    )
+
+    transaction_reference = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+    )
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[
+            MinValueValidator(Decimal("0.01")),
+        ],
+    )
+
+    card_last_four = models.CharField(
+        max_length=4,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self) -> str:
+        return self.transaction_reference
