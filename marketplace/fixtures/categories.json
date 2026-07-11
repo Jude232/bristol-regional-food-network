@@ -1,0 +1,52 @@
+[
+  {
+    "model": "marketplace.category",
+    "pk": 1,
+    "fields": {
+      "name": "Vegetables",
+      "slug": "vegetables",
+      "description": "Fresh locally grown vegetables.",
+      "is_active": true
+    }
+  },
+  {
+    "model": "marketplace.category",
+    "pk": 2,
+    "fields": {
+      "name": "Dairy & Eggs",
+      "slug": "dairy-eggs",
+      "description": "Milk, cheese, butter, yoghurt and eggs.",
+      "is_active": true
+    }
+  },
+  {
+    "model": "marketplace.category",
+    "pk": 3,
+    "fields": {
+      "name": "Bakery",
+      "slug": "bakery",
+      "description": "Bread, pastries and other baked products.",
+      "is_active": true
+    }
+  },
+  {
+    "model": "marketplace.category",
+    "pk": 4,
+    "fields": {
+      "name": "Preserves",
+      "slug": "preserves",
+      "description": "Jams, chutneys, pickles and preserves.",
+      "is_active": true
+    }
+  },
+  {
+    "model": "marketplace.category",
+    "pk": 5,
+    "fields": {
+      "name": "Seasonal Specialities",
+      "slug": "seasonal-specialities",
+      "description": "Products available during particular seasons.",
+      "is_active": true
+    }
+  }
+]
