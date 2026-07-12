@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -193,4 +194,110 @@ REST_FRAMEWORK = {
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:dashboard"
 LOGOUT_REDIRECT_URL = "accounts:home"
+
+
+# Docker and PostgreSQL deployment configuration
+# ------------------------------------------------
+# SQLite remains the default for direct development on csctcloud.
+# Docker supplies POSTGRES_HOST and therefore selects PostgreSQL.
+
+import os
+
+
+docker_secret_key = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "",
+).strip()
+
+if docker_secret_key:
+    SECRET_KEY = docker_secret_key
+
+
+docker_debug = os.getenv(
+    "DJANGO_DEBUG",
+)
+
+if docker_debug is not None:
+    DEBUG = docker_debug.strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+docker_allowed_hosts = os.getenv(
+    "DJANGO_ALLOWED_HOSTS",
+    "",
+).strip()
+
+if docker_allowed_hosts:
+    ALLOWED_HOSTS = [
+        host.strip()
+        for host in docker_allowed_hosts.split(",")
+        if host.strip()
+    ]
+
+
+docker_csrf_origins = os.getenv(
+    "DJANGO_CSRF_TRUSTED_ORIGINS",
+    "",
+).strip()
+
+if docker_csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [
+        origin.strip()
+        for origin in docker_csrf_origins.split(",")
+        if origin.strip()
+    ]
+
+
+postgres_host = os.getenv(
+    "POSTGRES_HOST",
+    "",
+).strip()
+
+if postgres_host:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv(
+                "POSTGRES_DB",
+                "brfn_marketplace",
+            ),
+            "USER": os.getenv(
+                "POSTGRES_USER",
+                "brfn_user",
+            ),
+            "PASSWORD": os.getenv(
+                "POSTGRES_PASSWORD",
+                "",
+            ),
+            "HOST": postgres_host,
+            "PORT": os.getenv(
+                "POSTGRES_PORT",
+                "5432",
+            ),
+            "CONN_MAX_AGE": 60,
+        }
+    }
+
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": (
+                "django.core.files.storage."
+                "FileSystemStorage"
+            ),
+        },
+        "staticfiles": {
+            "BACKEND": (
+                "whitenoise.storage."
+                "CompressedManifestStaticFilesStorage"
+            ),
+        },
+    }
 
