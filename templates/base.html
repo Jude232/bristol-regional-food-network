@@ -9,6 +9,11 @@
         content="width=device-width, initial-scale=1"
     >
 
+    <meta
+        name="theme-color"
+        content="#173c2b"
+    >
+
     <title>
         {% block title %}
             Bristol Regional Food Network
@@ -22,6 +27,13 @@
 </head>
 
 <body>
+    <a
+        class="skip-link"
+        href="#main-content"
+    >
+        Skip to main content
+    </a>
+
     <header class="site-header">
         <div class="container header-content">
             <a
@@ -31,7 +43,7 @@
                 Bristol Regional Food Network
             </a>
 
-            <nav>
+            <nav aria-label="Main navigation">
                 <a href="{% url 'accounts:home' %}">
                     Home
                 </a>
@@ -61,7 +73,8 @@
                         </a>
                     {% elif user.role == "customer" or user.role == "community_group" or user.role == "restaurant" %}
                         <a href="{% url 'orders:cart_detail' %}">
-                            Cart ({{ cart_item_count|floatformat:"-2" }})
+                            Cart
+                            ({{ cart_item_count|floatformat:"-2" }})
                         </a>
 
                         <a href="{% url 'orders:order_list' %}">
@@ -77,6 +90,7 @@
 
                     <a href="{% url 'orders:notification_list' %}">
                         Notifications
+
                         {% if unread_notification_count %}
                             ({{ unread_notification_count }})
                         {% endif %}
@@ -113,10 +127,16 @@
         </div>
     </header>
 
-    <main class="container">
+    <main
+        id="main-content"
+        class="container"
+    >
         {% if messages %}
             {% for message in messages %}
-                <div class="message {{ message.tags }}">
+                <div
+                    class="message {{ message.tags }}"
+                    role="status"
+                >
                     {{ message }}
                 </div>
             {% endfor %}
@@ -125,5 +145,36 @@
         {% block content %}
         {% endblock %}
     </main>
+
+    <footer class="site-footer">
+        <div class="container footer-content">
+            <div>
+                <strong>
+                    Bristol Regional Food Network
+                </strong>
+
+                <p>
+                    Connecting independent producers with homes,
+                    restaurants and community organisations across
+                    Bristol.
+                </p>
+            </div>
+
+            <div class="footer-links">
+                <a href="{% url 'marketplace:product_list' %}">
+                    Browse marketplace
+                </a>
+
+                <a href="/api/products/">
+                    Products API
+                </a>
+            </div>
+
+            <p class="footer-meta">
+                Local food. Fairer supply chains.
+                &copy; {% now "Y" %} BRFN.
+            </p>
+        </div>
+    </footer>
 </body>
 </html>

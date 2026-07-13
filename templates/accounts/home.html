@@ -1,41 +1,154 @@
 {% extends "base.html" %}
 
 {% block title %}
-    Home | Bristol Regional Food Network
+    Bristol Regional Food Network
 {% endblock %}
 
 {% block content %}
     <section class="hero">
-        <h1>Local food from Bristol producers</h1>
-
-        <p>
-            Browse fresh, seasonal products from independent farms and
-            food businesses within the Bristol region.
+        <p class="eyebrow">
+            Bristol Regional Food Network
         </p>
 
-        {% if not user.is_authenticated %}
-            <div class="button-row">
+        <h1>
+            Buy local food from Bristol producers
+        </h1>
+
+        <p>
+            Browse seasonal products from independent farms and food
+            producers across the Bristol area.
+        </p>
+
+        <div class="button-row">
+            <a
+                class="button"
+                href="{% url 'marketplace:product_list' %}"
+            >
+                Browse marketplace
+            </a>
+
+            {% if user.is_authenticated %}
+                <a
+                    class="button secondary"
+                    href="{% url 'accounts:dashboard' %}"
+                >
+                    Open dashboard
+                </a>
+            {% else %}
+                <a
+                    class="button secondary"
+                    href="{% url 'accounts:login' %}"
+                >
+                    Log in
+                </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="home-section">
+        <div class="section-heading">
+            <h2>
+                How the marketplace works
+            </h2>
+
+            <p>
+                The platform connects customers, restaurants,
+                community organisations and local food producers.
+            </p>
+        </div>
+
+        <div class="product-grid">
+            <article class="product-card">
+                <h3>
+                    Browse local products
+                </h3>
+
+                <p>
+                    Search products by category and view prices,
+                    availability, allergens and producer information.
+                </p>
+
+                <a href="{% url 'marketplace:product_list' %}">
+                    View products
+                </a>
+            </article>
+
+            <article class="product-card">
+                <h3>
+                    Order from multiple producers
+                </h3>
+
+                <p>
+                    Add products from different producers to one cart
+                    and complete a single checkout.
+                </p>
+
+                {% if user.is_authenticated %}
+                    {% if user.role == "customer" or user.role == "community_group" or user.role == "restaurant" %}
+                        <a href="{% url 'orders:cart_detail' %}">
+                            View your cart
+                        </a>
+                    {% else %}
+                        <a href="{% url 'accounts:dashboard' %}">
+                            Open dashboard
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'accounts:customer_register' %}">
+                        Create a customer account
+                    </a>
+                {% endif %}
+            </article>
+
+            <article class="product-card">
+                <h3>
+                    Tools for producers
+                </h3>
+
+                <p>
+                    Producers can manage products, stock levels,
+                    incoming orders and payment reports.
+                </p>
+
+                {% if user.is_authenticated and user.role == "producer" %}
+                    <a href="{% url 'accounts:dashboard' %}">
+                        Open producer dashboard
+                    </a>
+                {% else %}
+                    <a href="{% url 'accounts:producer_register' %}">
+                        Register as a producer
+                    </a>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    {% if not user.is_authenticated %}
+        <section class="form-card">
+            <h2>
+                Join the marketplace
+            </h2>
+
+            <p>
+                Register as a customer to purchase local food or as a
+                producer to list and manage products.
+            </p>
+
+            <div class="button-row left-aligned">
                 <a
                     class="button"
                     href="{% url 'accounts:customer_register' %}"
                 >
-                    Register as a customer
+                    Customer registration
                 </a>
 
                 <a
                     class="button secondary"
                     href="{% url 'accounts:producer_register' %}"
                 >
-                    Register as a producer
+                    Producer registration
                 </a>
             </div>
-        {% else %}
-            <a
-                class="button"
-                href="{% url 'accounts:dashboard' %}"
-            >
-                Open your dashboard
-            </a>
-        {% endif %}
-    </section>
+        </section>
+    {% endif %}
 {% endblock %}
