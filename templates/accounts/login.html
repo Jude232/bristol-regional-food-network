@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}
     Log in
@@ -8,24 +8,41 @@
     <section class="form-card">
         <h1>Log in</h1>
 
-        {% if form.errors %}
+        <p>
+            Sign in using your marketplace email address.
+        </p>
+
+        {% if blocked_message %}
             <div class="message error">
-                The email address or password was incorrect.
+                {{ blocked_message }}
+            </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="message error">
+                {{ form.non_field_errors }}
             </div>
         {% endif %}
 
         <form method="post">
             {% csrf_token %}
 
-            {{ form.as_p }}
+            <p>
+                {{ form.username.label_tag }}
+                {{ form.username }}
+                {{ form.username.errors }}
+            </p>
 
-            {% if next %}
-                <input
-                    type="hidden"
-                    name="next"
-                    value="{{ next }}"
-                >
-            {% endif %}
+            <p>
+                {{ form.password.label_tag }}
+                {{ form.password }}
+                {{ form.password.errors }}
+            </p>
+
+            <p class="checkbox-row">
+                {{ form.remember_me }}
+                {{ form.remember_me.label_tag }}
+            </p>
 
             <button
                 class="button"

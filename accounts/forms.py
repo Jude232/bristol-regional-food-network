@@ -138,3 +138,34 @@ class CustomerRegistrationForm(BaseRegistrationForm):
         )
 
         return user
+
+
+from django import forms as authentication_forms
+from django.contrib.auth.forms import AuthenticationForm
+
+
+class SecureAuthenticationForm(AuthenticationForm):
+    """Email login form with optional persistent sessions."""
+
+    remember_me = authentication_forms.BooleanField(
+        required=False,
+        label="Keep me signed in on this device",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["username"].label = "Email address"
+
+        self.fields["username"].widget.attrs.update(
+            {
+                "autocomplete": "email",
+                "autofocus": True,
+            }
+        )
+
+        self.fields["password"].widget.attrs.update(
+            {
+                "autocomplete": "current-password",
+            }
+        )

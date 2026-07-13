@@ -91,3 +91,137 @@ def dashboard(request):
             "profile": profile,
         },
     )
+
+
+from django.contrib.auth.views import (
+    LoginView as DjangoLoginView,
+    LogoutView as DjangoLogoutView,
+)
+from django.shortcuts import render as security_render
+from django.urls import reverse_lazy
+
+from .forms import SecureAuthenticationForm
+from .models import AuthenticationEvent
+from .security import (
+    get_client_ip,
+    is_login_blocked,
+    normalise_email,
+    record_authentication_event,
+)
+
+
+class SecureLoginView(DjangoLoginView):
+    """Login with auditing, throttling and session choice."""
+
+    template_name = "accounts/login.html"
+    authentication_form = SecureAuthenticationForm
+    redirect_authenticated_user = True
+
+    def post(self, request, *args, **kwargs):
+        self.login_email = normalise_email(
+            request.POST.get(
+                "username",
+                "",
+            )
+        )
+
+        self.login_ip = get_client_ip(request)
+
+        if is_login_blocked(
+            email=self.login_email,
+            ip_address=self.login_ip,
+        ):
+            record_authentication_event(
+                request=request,
+                event_type=(
+                    AuthenticationEvent.EventType.LOGIN_BLOCKED
+                ),
+                email=self.login_email,
+            )
+
+            form = self.get_form_class()(
+                request=request
+            )
+
+            return security_render(
+                request,
+                self.template_name,
+                {
+                    "form": form,
+                    "blocked_message": (
+                        "Too many unsuccessful login attempts. "
+                        "Wait 15 minutes before trying again."
+                    ),
+                },
+                status=429,
+            )
+
+        return super().post(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+
+        user = form.get_user()
+
+        record_authentication_event(
+            request=self.request,
+            event_type=(
+                AuthenticationEvent.EventType.LOGIN_SUCCESS
+            ),
+            email=user.email,
+            user=user,
+        )
+
+        if form.cleaned_data.get("remember_me"):
+            self.request.session.set_expiry(
+                60 * 60 * 24 * 14
+            )
+        else:
+            self.request.session.set_expiry(0)
+
+        return response
+
+    def form_invalid(self, form):
+        email = getattr(
+            self,
+            "login_email",
+            "",
+        )
+
+        if email:
+            record_authentication_event(
+                request=self.request,
+                event_type=(
+                    AuthenticationEvent.EventType.LOGIN_FAILURE
+                ),
+                email=email,
+            )
+
+        return super().form_invalid(form)
+
+
+class SecureLogoutView(DjangoLogoutView):
+    """Record explicit logout before terminating the session."""
+
+    next_page = reverse_lazy("accounts:home")
+
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            record_authentication_event(
+                request=request,
+                event_type=(
+                    AuthenticationEvent.EventType.LOGOUT
+                ),
+                email=request.user.email,
+                user=request.user,
+            )
+
+        return super().post(
+            request,
+            *args,
+            **kwargs,
+        )

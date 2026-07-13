@@ -301,3 +301,72 @@ if not DEBUG:
         },
     }
 
+
+
+# Security hardening
+# ------------------------------------------------
+# HTTPS-only options remain environment controlled so that local
+# Docker development can continue at http://localhost:8000.
+
+def security_environment_boolean(
+    name,
+    default=False,
+):
+    value = os.getenv(name)
+
+    if value is None:
+        return default
+
+    return value.strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
+
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+
+X_FRAME_OPTIONS = "DENY"
+
+SECURE_SSL_REDIRECT = security_environment_boolean(
+    "DJANGO_SECURE_SSL_REDIRECT",
+    False,
+)
+
+SESSION_COOKIE_SECURE = security_environment_boolean(
+    "DJANGO_SESSION_COOKIE_SECURE",
+    False,
+)
+
+CSRF_COOKIE_SECURE = security_environment_boolean(
+    "DJANGO_CSRF_COOKIE_SECURE",
+    False,
+)
+
+SECURE_HSTS_SECONDS = int(
+    os.getenv(
+        "DJANGO_SECURE_HSTS_SECONDS",
+        "0",
+    )
+)
+
+SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+    security_environment_boolean(
+        "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
+        False,
+    )
+)
+
+SECURE_HSTS_PRELOAD = security_environment_boolean(
+    "DJANGO_SECURE_HSTS_PRELOAD",
+    False,
+)

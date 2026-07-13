@@ -131,3 +131,50 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         "user__last_name",
         "postcode",
     )
+
+from .models import AuthenticationEvent
+
+
+@admin.register(AuthenticationEvent)
+class AuthenticationEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "event_type",
+        "email",
+        "user",
+        "ip_address",
+        "created_at",
+    )
+
+    list_filter = (
+        "event_type",
+        "created_at",
+    )
+
+    search_fields = (
+        "email",
+        "user__email",
+        "ip_address",
+    )
+
+    readonly_fields = (
+        "event_type",
+        "email",
+        "user",
+        "ip_address",
+        "user_agent",
+        "created_at",
+    )
+
+    ordering = (
+        "-created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False

@@ -118,3 +118,70 @@ class CustomerProfile(models.Model):
             return full_name
 
         return self.user.email
+
+from django.conf import settings as authentication_settings
+from django.db import models as authentication_models
+
+
+class AuthenticationEvent(authentication_models.Model):
+    """Audit record for security-relevant authentication activity."""
+
+    class EventType(authentication_models.TextChoices):
+        LOGIN_SUCCESS = "login_success", "Login Success"
+        LOGIN_FAILURE = "login_failure", "Login Failure"
+        LOGIN_BLOCKED = "login_blocked", "Login Blocked"
+        LOGOUT = "logout", "Logout"
+
+    event_type = authentication_models.CharField(
+        max_length=30,
+        choices=EventType.choices,
+    )
+
+    user = authentication_models.ForeignKey(
+        authentication_settings.AUTH_USER_MODEL,
+        on_delete=authentication_models.SET_NULL,
+        related_name="authentication_events",
+        blank=True,
+        null=True,
+    )
+
+    email = authentication_models.EmailField(
+        blank=True,
+    )
+
+    ip_address = authentication_models.GenericIPAddressField(
+        blank=True,
+        null=True,
+    )
+
+    user_agent = authentication_models.CharField(
+        max_length=500,
+        blank=True,
+    )
+
+    created_at = authentication_models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+        indexes = [
+            authentication_models.Index(
+                fields=[
+                    "email",
+                    "ip_address",
+                    "event_type",
+                    "created_at",
+                ],
+                name="auth_event_lookup_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        identity = self.email or "unknown user"
+
+        return (
+            f"{self.get_event_type_display()} — "
+            f"{identity} — {self.created_at}"
+        )
