@@ -26,7 +26,13 @@ from .services import (
     create_order_from_cart,
 )
 
+#This file processes requests, checks user ownership, calls forms and services, and sends data to the HTML templates.
+#Queries include the current customer or producer, preventing users from accessing records belonging to someone else.
 
+# These account types can use customer ordering features.
+#
+# Community groups and restaurants use the same cart and checkout
+# process as normal customer accounts.
 CUSTOMER_ROLES = {
     User.Role.CUSTOMER,
     User.Role.COMMUNITY_GROUP,
@@ -35,7 +41,13 @@ CUSTOMER_ROLES = {
 
 
 def customer_required(view_function):
-    """Restrict a view to authenticated customer account types."""
+    """
+    Restrict a view to logged-in customer account types.
+
+    This custom decorator first checks that the user is authenticated
+    and then checks that their role is allowed to use customer
+    marketplace features.
+    """
 
     @login_required
     @wraps(view_function)
@@ -44,11 +56,13 @@ def customer_required(view_function):
         *args,
         **kwargs,
     ) -> HttpResponse:
+        # Refuse access when the account is not a customer-type role.
         if request.user.role not in CUSTOMER_ROLES:
             raise PermissionDenied(
                 "Only customer accounts can use this feature."
             )
 
+        # Run the original view after the permission check succeeds.
         return view_function(
             request,
             *args,
@@ -59,13 +73,19 @@ def customer_required(view_function):
 
 
 def build_producer_groups(items):
-    """Group cart items by producer for multi-vendor awareness."""
+    """
+    Group cart items according to their producer.
+
+    This allows the cart and checkout pages to clearly show that one
+    customer order may contain products from several producers.
+    """
 
     grouped_items = {}
 
     for item in items:
         producer = item.product.producer
 
+        # Create a new group when this producer has not been seen yet.
         if producer.id not in grouped_items:
             grouped_items[producer.id] = {
                 "producer": producer,
@@ -73,8 +93,10 @@ def build_producer_groups(items):
                 "subtotal": Decimal("0.00"),
             }
 
+        # Add the item to its producer's group.
         grouped_items[producer.id]["items"].append(item)
 
+        # Add the item's line total to the producer subtotal.
         grouped_items[producer.id]["subtotal"] += (
             item.line_total
         )
@@ -83,7 +105,13 @@ def build_producer_groups(items):
 
 
 def get_customer_cart(customer):
-    """Return a cart with all product and producer data loaded."""
+    """
+    Return the customer's persistent shopping cart.
+
+    A cart is created automatically if the customer does not already
+    have one. Related product, category and producer information is
+    loaded efficiently for displaying the cart.
+    """
 
     cart, _ = Cart.objects.get_or_create(
         customer=customer
@@ -106,13 +134,17 @@ def get_customer_cart(customer):
 
 @customer_required
 def cart_detail(request):
-    """Display all items in the logged-in customer's cart."""
+    """
+    Display all items in the logged-in customer's cart.
+    """
 
     cart = get_customer_cart(
         request.user
     )
 
     items = list(cart.items.all())
+
+    # Group the items by producer before sending them to the template.
     producer_groups = build_producer_groups(items)
 
     return render(
@@ -127,22 +159,29 @@ def cart_detail(request):
 
 @customer_required
 def add_to_cart(request, product_id):
-    """Add an available product to the customer's persistent cart."""
+    """
+    Add an available product to the customer's persistent cart.
+    """
 
+    # Cart changes must use POST so that simply opening a URL cannot
+    # accidentally add an item.
     if request.method != "POST":
         raise PermissionDenied(
             "Products can only be added using a form submission."
         )
 
+    # Only products that customers are allowed to see can be added.
     product = get_object_or_404(
         customer_visible_products(),
         pk=product_id,
     )
 
+    # Create the user's cart if it does not already exist.
     cart, _ = Cart.objects.get_or_create(
         customer=request.user
     )
 
+    # Check whether this product is already in the cart.
     cart_item = CartItem.objects.filter(
         cart=cart,
         product=product,
@@ -154,6 +193,7 @@ def add_to_cart(request, product_id):
         else Decimal("0.00")
     )
 
+    # Validate the requested quantity against product stock.
     form = CartQuantityForm(
         request.POST,
         product=product,
@@ -161,6 +201,7 @@ def add_to_cart(request, product_id):
         add_to_existing=True,
     )
 
+    # Display each form error to the customer.
     if not form.is_valid():
         for errors in form.errors.values():
             for error in errors:
@@ -176,8 +217,11 @@ def add_to_cart(request, product_id):
 
     quantity = form.cleaned_data["quantity"]
 
+    # Increase the quantity when the product is already in the cart.
     if cart_item:
         cart_item.quantity += quantity
+
+    # Otherwise, create a new cart item.
     else:
         cart_item = CartItem(
             cart=cart,
@@ -185,6 +229,7 @@ def add_to_cart(request, product_id):
             quantity=quantity,
         )
 
+    # Run model validation before saving.
     cart_item.full_clean()
     cart_item.save()
 
@@ -200,13 +245,16 @@ def add_to_cart(request, product_id):
 
 @customer_required
 def update_cart_item(request, item_id):
-    """Replace an existing cart item's quantity."""
+    """
+    Replace the quantity of an existing cart item.
+    """
 
     if request.method != "POST":
         raise PermissionDenied(
             "Cart quantities can only be changed using POST."
         )
 
+    # The customer can only update an item belonging to their own cart.
     cart_item = get_object_or_404(
         CartItem.objects.select_related("product"),
         pk=item_id,
@@ -220,7 +268,10 @@ def update_cart_item(request, item_id):
 
     if form.is_valid():
         cart_item.quantity = form.cleaned_data["quantity"]
+
+        # Validate the new quantity before saving it.
         cart_item.full_clean()
+
         cart_item.save(
             update_fields=[
                 "quantity",
@@ -232,7 +283,9 @@ def update_cart_item(request, item_id):
             request,
             f"{cart_item.product.name} quantity was updated.",
         )
+
     else:
+        # Display validation errors such as exceeding available stock.
         for errors in form.errors.values():
             for error in errors:
                 messages.error(
@@ -247,13 +300,16 @@ def update_cart_item(request, item_id):
 
 @customer_required
 def remove_cart_item(request, item_id):
-    """Remove one product from the customer's cart."""
+    """
+    Remove one product from the customer's cart.
+    """
 
     if request.method != "POST":
         raise PermissionDenied(
             "Cart items can only be removed using POST."
         )
 
+    # Customers can only remove items from their own cart.
     cart_item = get_object_or_404(
         CartItem.objects.select_related("product"),
         pk=item_id,
@@ -275,7 +331,9 @@ def remove_cart_item(request, item_id):
 
 @customer_required
 def clear_cart(request):
-    """Remove every product from the customer's cart."""
+    """
+    Remove every item from the customer's cart.
+    """
 
     if request.method != "POST":
         raise PermissionDenied(
@@ -300,7 +358,12 @@ def clear_cart(request):
 
 @customer_required
 def checkout(request):
-    """Display and process the single/multi-producer checkout."""
+    """
+    Display and process the single or multi-producer checkout page.
+
+    GET requests display the form, while POST requests validate the
+    details and call the checkout service to create the order.
+    """
 
     cart = get_customer_cart(
         request.user
@@ -308,6 +371,7 @@ def checkout(request):
 
     items = list(cart.items.all())
 
+    # Customers cannot access checkout with an empty cart.
     if not items:
         messages.error(
             request,
@@ -318,8 +382,11 @@ def checkout(request):
             "orders:cart_detail"
         )
 
+    # Group items so the customer can see which producer supplies
+    # each part of the order.
     producer_groups = build_producer_groups(items)
 
+    # Try to retrieve saved delivery information from the user's profile.
     profile = getattr(
         request.user,
         "customer_profile",
@@ -328,12 +395,14 @@ def checkout(request):
 
     initial = {}
 
+    # Pre-fill the checkout form when profile details are available.
     if profile:
         initial = {
             "delivery_address": profile.delivery_address,
             "delivery_postcode": profile.postcode,
         }
 
+    # Process the submitted checkout form.
     if request.method == "POST":
         form = CheckoutForm(
             request.POST
@@ -341,6 +410,8 @@ def checkout(request):
 
         if form.is_valid():
             try:
+                # The service safely creates the order, producer orders,
+                # payment record, notifications and stock changes.
                 order = create_order_from_cart(
                     customer=request.user,
                     delivery_address=(
@@ -374,16 +445,22 @@ def checkout(request):
                         ]
                     ),
                 )
+
+            # Show a payment-specific error when MockPay declines.
             except PaymentDeclined as error:
                 form.add_error(
                     "payment_token",
                     str(error),
                 )
+
+            # Show other checkout problems as general form errors.
             except CheckoutError as error:
                 form.add_error(
                     None,
                     str(error),
                 )
+
+            # Redirect to the new order when checkout succeeds.
             else:
                 messages.success(
                     request,
@@ -397,15 +474,19 @@ def checkout(request):
                     "orders:order_detail",
                     order_id=order.id,
                 )
+
+    # Display a blank form for a normal GET request.
     else:
         form = CheckoutForm(
             initial=initial
         )
 
+    # Calculate a preview of the marketplace's 5% commission.
     commission_preview = money(
         cart.total * COMMISSION_RATE
     )
 
+    # Calculate a preview of the amount allocated to producers.
     producer_payment_preview = money(
         cart.total - commission_preview
     )
@@ -427,7 +508,9 @@ def checkout(request):
 
 @customer_required
 def order_list(request):
-    """Display orders belonging to the logged-in customer."""
+    """
+    Display all orders belonging to the logged-in customer.
+    """
 
     orders = (
         Order.objects.filter(
@@ -450,7 +533,12 @@ def order_list(request):
 
 @customer_required
 def order_detail(request, order_id):
-    """Display one order owned by the logged-in customer."""
+    """
+    Display one order belonging to the logged-in customer.
+
+    Filtering by customer prevents another user from viewing the order
+    by manually changing the order ID in the URL.
+    """
 
     order = get_object_or_404(
         Order.objects.prefetch_related(
@@ -461,6 +549,7 @@ def order_detail(request, order_id):
         customer=request.user,
     )
 
+    # Retrieve the simulated payment record linked to the order.
     payment = PaymentTransaction.objects.filter(
         order=order
     ).first()
@@ -475,6 +564,10 @@ def order_detail(request, order_id):
     )
 
 
+# These imports support the producer order-management section below.
+#
+# In a future refactor they could be moved to the top of the file,
+# but keeping them here does not change how the code works.
 from django.db import transaction
 from django.urls import reverse
 
@@ -487,8 +580,14 @@ from .models import (
 
 
 def get_producer_profile(request):
-    """Return the producer profile belonging to the current user."""
+    """
+    Return the producer profile belonging to the current user.
 
+    The function also prevents non-producer accounts or incomplete
+    producer accounts from accessing producer order pages.
+    """
+
+    # The logged-in account must have the producer role.
     if request.user.role != User.Role.PRODUCER:
         raise PermissionDenied(
             "Only producer accounts can access incoming orders."
@@ -500,6 +599,7 @@ def get_producer_profile(request):
         None,
     )
 
+    # The account must also have an associated producer profile.
     if profile is None:
         raise PermissionDenied(
             "This producer account does not have a producer profile."
@@ -510,7 +610,9 @@ def get_producer_profile(request):
 
 @login_required
 def producer_order_list(request):
-    """Display only the incoming orders belonging to this producer."""
+    """
+    Display only the incoming orders belonging to the current producer.
+    """
 
     producer = get_producer_profile(request)
 
@@ -531,16 +633,19 @@ def producer_order_list(request):
         )
     )
 
+    # Read the optional status filter from the page URL.
     selected_status = request.GET.get(
         "status",
         "",
     ).strip()
 
+    # Build a set of valid producer-order status values.
     valid_statuses = {
         choice.value
         for choice in ProducerOrder.Status
     }
 
+    # Only apply the filter when the supplied status is valid.
     if selected_status in valid_statuses:
         producer_orders = producer_orders.filter(
             status=selected_status
@@ -562,7 +667,12 @@ def producer_order_detail(
     request,
     producer_order_id,
 ):
-    """Display one producer-owned portion of an order."""
+    """
+    Display one producer-owned section of a customer order.
+
+    The query includes the current producer so producers cannot view
+    another producer's part of an order by changing the URL.
+    """
 
     producer = get_producer_profile(request)
 
@@ -579,12 +689,14 @@ def producer_order_detail(
         producer=producer,
     )
 
+    # Retrieve the customer's contact and delivery profile where present.
     customer_profile = getattr(
         producer_order.order.customer,
         "customer_profile",
         None,
     )
 
+    # The form only presents valid next statuses for this order.
     status_form = ProducerOrderStatusForm(
         producer_order=producer_order
     )
@@ -606,8 +718,14 @@ def producer_order_status_update(
     request,
     producer_order_id,
 ):
-    """Advance an owned producer order through its lifecycle."""
+    """
+    Update the status of a producer-owned order section.
 
+    The status update, history record, customer notification and main
+    order update are handled inside one database transaction.
+    """
+
+    # Status changes must be submitted using a form.
     if request.method != "POST":
         raise PermissionDenied(
             "Order statuses can only be changed using POST."
@@ -615,6 +733,9 @@ def producer_order_status_update(
 
     producer = get_producer_profile(request)
 
+    # Lock the producer-order row while its status is being updated.
+    #
+    # This prevents two simultaneous updates from overwriting each other.
     producer_order = get_object_or_404(
         ProducerOrder.objects.select_for_update()
         .select_related(
@@ -631,6 +752,7 @@ def producer_order_status_update(
         producer_order=producer_order,
     )
 
+    # Display form validation errors and return to the order page.
     if not form.is_valid():
         for errors in form.errors.values():
             for error in errors:
@@ -644,6 +766,7 @@ def producer_order_status_update(
             producer_order_id=producer_order.id,
         )
 
+    # Save the previous status before changing it for the audit history.
     previous_status = producer_order.status
     new_status = form.cleaned_data["next_status"]
     note = form.cleaned_data["note"].strip()
@@ -659,6 +782,7 @@ def producer_order_status_update(
         ]
     )
 
+    # Create a permanent audit record of the status change.
     ProducerOrderStatusHistory.objects.create(
         producer_order=producer_order,
         previous_status=previous_status,
@@ -667,6 +791,7 @@ def producer_order_status_update(
         changed_by=request.user,
     )
 
+    # Notify the customer that one producer has updated their order.
     UserNotification.objects.create(
         recipient=producer_order.order.customer,
         notification_type=(
@@ -688,6 +813,8 @@ def producer_order_status_update(
 
     order = producer_order.order
 
+    # Retrieve the status of every producer section within the
+    # main customer order.
     producer_statuses = list(
         order.producer_orders.values_list(
             "status",
@@ -695,6 +822,8 @@ def producer_order_status_update(
         )
     )
 
+    # The whole customer order is complete only when all producers
+    # have marked their sections as delivered.
     if (
         producer_statuses
         and all(
@@ -704,6 +833,8 @@ def producer_order_status_update(
     ):
         order.status = Order.Status.COMPLETED
 
+    # The whole order is cancelled when every producer section
+    # has been cancelled.
     elif (
         producer_statuses
         and all(
@@ -713,6 +844,8 @@ def producer_order_status_update(
     ):
         order.status = Order.Status.CANCELLED
 
+    # If at least one producer has started processing the order,
+    # the main order is marked as processing.
     elif any(
         status in {
             ProducerOrder.Status.CONFIRMED,
@@ -723,6 +856,7 @@ def producer_order_status_update(
     ):
         order.status = Order.Status.PROCESSING
 
+    # Otherwise, the main order remains pending.
     else:
         order.status = Order.Status.PENDING
 
@@ -749,8 +883,11 @@ def producer_order_status_update(
 
 @login_required
 def notification_list(request):
-    """Display notifications belonging to the logged-in user."""
+    """
+    Display notifications belonging to the logged-in user.
+    """
 
+    # The related_name ensures users only retrieve their own records.
     notifications = request.user.notifications.all()
 
     return render(
@@ -767,13 +904,17 @@ def notification_mark_read(
     request,
     notification_id,
 ):
-    """Mark one owned notification as read."""
+    """
+    Mark one notification belonging to the current user as read.
+    """
 
     if request.method != "POST":
         raise PermissionDenied(
             "Notifications can only be changed using POST."
         )
 
+    # Including recipient=request.user prevents users from changing
+    # another account's notification.
     notification = get_object_or_404(
         UserNotification,
         pk=notification_id,
@@ -781,12 +922,14 @@ def notification_mark_read(
     )
 
     notification.is_read = True
+
     notification.save(
         update_fields=[
             "is_read",
         ]
     )
 
+    # Open the related order or product when the notification has a link.
     if notification.link:
         return redirect(
             notification.link

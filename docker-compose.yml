@@ -1,48 +1,87 @@
+# Docker Compose is used to run the Django website and PostgreSQL
+# database together as separate containers.
+
 services:
+  # PostgreSQL database service.
   db:
+    # Uses the lightweight Alpine version of PostgreSQL 16.
     image: postgres:16-alpine
+
+    # Restarts the database automatically unless it is manually stopped.
     restart: unless-stopped
 
+    # Loads database settings such as the username, password and
+    # database name from the private .env file.
     env_file:
       - .env
 
+    # Stores PostgreSQL data in a named volume.
+    # This means the database remains available after containers stop.
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    # Checks whether PostgreSQL is ready to accept connections.
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
         ]
+
+      # Runs the health check every five seconds.
       interval: 5s
+
+      # Stops each health-check attempt after five seconds.
       timeout: 5s
+
+      # Allows ten failed checks before the service is marked unhealthy.
       retries: 10
+
+      # Gives PostgreSQL ten seconds to start before checks begin.
       start_period: 10s
 
+  # Django web application service.
   web:
+    # Builds the web image using the Dockerfile in the project folder.
     build:
       context: .
 
+    # Restarts the web container unless it is manually stopped.
     restart: unless-stopped
 
+    # Loads Django and database settings from the .env file.
     env_file:
       - .env
 
+    # Tells Django to connect to the PostgreSQL service called "db".
+    #
+    # Containers communicate using the service name rather than
+    # localhost.
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
 
+    # Prevents the Django container from starting until PostgreSQL
+    # has passed its health check.
     depends_on:
       db:
         condition: service_healthy
 
+    # Maps port 8000 on the computer to port 8000 in the web container.
+    #
+    # This allows the website to be opened at:
+    # http://localhost:8000/
     ports:
       - "8000:8000"
 
+    # Stores uploaded media files in a persistent Docker volume.
     volumes:
       - media_data:/app/media
 
+# Defines the named volumes used by the two services.
 volumes:
+  # Keeps PostgreSQL database records between container restarts.
   postgres_data:
+
+  # Keeps uploaded media files between container restarts.
   media_data:
